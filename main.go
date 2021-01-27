@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"luago/binchunk"
+	. "luago/vm"
 	"os"
 )
 
@@ -54,7 +55,51 @@ func printCode(f *binchunk.Prototype) {
 		if len(f.LineInfo) > 0 {
 			line = fmt.Sprintf("%d", f.LineInfo[pc])
 		}
-		fmt.Printf("\t%d\t[%s]\t0x%08X\n", pc+1, line, c)
+		i := Instruction(c)
+		fmt.Printf("\t%d\t[%s]\t0x%s\t%d\t", pc+1, line, i.OpName(), i.OpMode())
+		printOperands(i)
+		fmt.Println()
+	}
+}
+
+func printOperands(i Instruction) {
+	switch i.OpMode() {
+	case IABC:
+		a, b, c := i.ABC()
+
+		fmt.Printf("%d", a)
+		if i.BMode() != OpArgN {
+			if b > 0xFF {
+				// 最高比特位为1，常量表索引，按负数输出
+				fmt.Printf(" %d", -1-b&0xFF)
+			} else {
+				// 最高比特位为0，寄存器索引，正常输出
+				fmt.Printf(" %d", b)
+			}
+		}
+		if i.CMode() != OpArgN {
+			if c > 0xFF {
+				//同上
+				fmt.Printf(" %d", -1-c&0xFF)
+			} else {
+				fmt.Printf(" %d", c)
+			}
+		}
+	case IABx:
+		a, bx := i.ABx()
+
+		fmt.Printf("%d", a)
+		if i.BMode() == OpArgK {
+			fmt.Printf(" %d", -1-bx)
+		} else if i.BMode() == OpArgU {
+			fmt.Printf(" %d", bx)
+		}
+	case IAsBx:
+		a, sbx := i.AsBx()
+		fmt.Printf("%d %d", a, sbx)
+	case IAx:
+		ax := i.Ax()
+		fmt.Printf("%d", -1-ax)
 	}
 }
 
