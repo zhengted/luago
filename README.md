@@ -280,3 +280,100 @@
 
 #### 指令解码
 
+- 指令解码的方式主要是位运算，理解这一部分的位运算对Lua虚拟机的底层内存结构印象会深一些
+
+  ```go
+  const (
+  	MAXARG_Bx  = 1<<18 - 1      // 2^18 - 1 = 262143
+  	MAXARG_sBx = MAXARG_Bx >> 1 // 262143 / 2 = 131071
+  )
+  
+  type Instruction uint32
+  
+  // Opcode:提取操作码
+  func (self Instruction) Opcode() int {
+  	return int(self & 0x3F)
+  }
+  
+  // ABC:ABC模式提取操作数
+  func (self Instruction) ABC() (a, b, c int) {
+  	a = int(self >> 6 & 0xFF)
+  	b = int(self >> 14 & 0x1FF)
+  	c = int(self >> 23 & 0x1FF)
+  	return
+  }
+  
+  // ABx: ABx提取操作数
+  func (self Instruction) ABx() (a, bx int) {
+  	a = int(self >> 6 & 0xFF)
+  	bx = int(self >> 14)
+  	return
+  }
+  
+  // AsBx: AsBx提取操作数
+  func (self Instruction) AsBx() (a, sbx int) {
+  	a, bx := self.ABx()
+  	return a, bx - MAXARG_sBx
+  }
+  
+  // 以上两者的区别在于sbx是有符号的，而bx是无符号的
+  // sbx的取值范围是：-131071~131072
+  // bx的取值范围是：0~262143
+  
+  // Ax: Ax提取参数
+  func (self Instruction) Ax() int {
+  	return int(self >> 6)
+  }
+  ```
+
+- 其中ABx和AsBx的解码需注意两者的范围是不同的
+
+  ![image-20210127210045395](https://i.loli.net/2021/01/27/75UhyQweZ8W4q1i.png)
+
+#### 打印解码内容
+
+
+
+```go
+func printOperands(i Instruction) {
+	switch i.OpMode() {
+	case IABC:
+		a, b, c := i.ABC()
+
+		fmt.Printf("%d", a)
+		if i.BMode() != OpArgN {
+			if b > 0xFF {
+				// 最高比特位为1，常量表索引，按负数输出
+				fmt.Printf(" %d", -1-b&0xFF)
+			} else {
+				// 最高比特位为0，寄存器索引，正常输出
+				fmt.Printf(" %d", b)
+			}
+		}
+		if i.CMode() != OpArgN {
+			if c > 0xFF {
+				//同上
+				fmt.Printf(" %d", -1-c&0xFF)
+			} else {
+				fmt.Printf(" %d", c)
+			}
+		}
+	case IABx:
+		a, bx := i.ABx()
+		fmt.Printf("%d", a)
+        // 这里则是根据操作数类型决定打印出来的是有符号数还是无符号数
+		if i.BMode() == OpArgK {
+			fmt.Printf(" %d", -1-bx)
+		} else if i.BMode() == OpArgU {
+			fmt.Printf(" %d", bx)
+		}
+	case IAsBx:
+		a, sbx := i.AsBx()
+		fmt.Printf("%d %d", a, sbx)
+	case IAx:
+		ax := i.Ax()
+		fmt.Printf("%d", -1-ax)
+	}
+}
+```
+
