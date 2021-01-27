@@ -255,5 +255,28 @@
 
 #### 操作数
 
-- 操作数A主要用来标识目标寄存器的索引，其他操作数按照其表示的信息可以分为四种类型
-- 
+- 操作数A主要用来标识目标寄存器的索引，其他操作数按照其表示的信息可以分为四种类型：OpArgN、 OpArgU、 OpArgR、 OpArgK
+  - OpArgN：不表示任何信息，不被使用的。比如MOVE指令，只操作A和B（iABC模式下），C操作数则是OpArgN类型
+
+  - OpArgU：正常的被使用的操作数
+
+  - OpArgR：在iABC下标识寄存器索引。在iAsBx下标识跳转偏移，比如该模式下的MOVE指令则可以用伪代码表示为R(A) := R(B)。其中A表示dst寄存器索引，B表示src寄存器索引
+
+  - OpArgK：表示常量表索引或者寄存器索引。例子不赘述
+
+    - 如何区分什么时候用常量表，什么时候用寄存器。依赖于B、C操作数的第一个比特，为1则表示常量表索引，为0则表示寄存器索引
+
+  - 码
+
+    ```go
+    /* OpArgMask */
+    const (
+    	OpArgN = iota // argument is not used
+    	OpArgU        // argument is used
+    	OpArgR        // argument is a register or a jump offset
+    	OpArgK        // argument is a constant or register/constant
+    )
+    ```
+
+#### 指令解码
+
