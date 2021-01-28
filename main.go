@@ -23,7 +23,7 @@ func main() {
 }
 
 func luaCalcTestDemo() {
-	ls := state.New()
+	ls := state.New(20, nil)
 	ls.PushInteger(1)
 	ls.PushString("2.0")
 	ls.PushString("3.0")
@@ -43,7 +43,7 @@ func luaCalcTestDemo() {
 }
 
 func luaStateTestDemo() {
-	ls := state.New()
+	ls := state.New(20, nil)
 
 	ls.PushBoolean(true)
 	printStack(ls)
