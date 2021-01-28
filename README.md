@@ -377,3 +377,106 @@ func printOperands(i Instruction) {
 }
 ```
 
+### API
+
+#### LuaAPI、LuaState和宿主程序的关系
+
+![image-20210128115559475](https://i.loli.net/2021/01/28/MglPTkSiF5QRmAD.png)
+
+#### 关于Lua栈的索引计算
+
+- 绝对索引：从栈底从下往上数是第几个元素就是几，范围[1,n]
+
+- 相对索引：栈顶为-1，从上往下递减
+
+  ![image-20210128120042812](https://i.loli.net/2021/01/28/YH6ienIsBagF153.png)
+
+- 索引校验函数
+
+  ```go
+  // absIndex: 把索引转换为绝对索引
+  // TODO:需考虑索引是否有效
+  func (self *luaStack) absIndex(idx int) int {
+  	if idx >= 0 {
+  		return idx
+  	}
+  	return idx + self.top + 1
+  }
+  ```
+
+- 栈中的操作大多针对索引，因此对索引的快速转换要掌握
+
+#### LuaState
+
+- LuaState包含的基本与栈相关的函数 如下
+  - 基础栈的操纵方法，Push、Pop、Rotate等等
+  - 栈访问方法，IsBoolean、ToBoolean等等
+  - 压栈方法，PushBoolean、PushNumber等等
+
+#### X方法
+
+- 栈访问方法中有三组X方法，分别是ToNumber和ToNumberX、ToString和ToStringX以及ToInteger和ToIntegerX。以下以ToString为例
+
+  ```go
+  func (self *luaState) ToString(idx int) string {
+  	s, _ := self.ToStringX(idx)
+  	return s
+  }
+  
+  func (self *luaState) ToStringX(idx int) (string, bool) {
+  	val := self.stack.get(idx)
+  
+  	switch x := val.(type) {
+  	case string:
+  		return x, true
+  	case int64, float64:
+  		s := fmt.Sprintf("%v", x) // todo
+  		self.stack.set(idx, s)
+  		return s, true
+  	default:
+  		return "", false
+  	}
+  }
+  ```
+
+- ToString只在意获取到的结果，不关心是否成功
+
+### 运算符
+
+#### Lua运算符介绍
+
+- 算数运算符：+、-、*、/、//（整除）、%、^（乘方）
+- 按位运算符：&、|、~（二元异或，一元按位取反，**本代码中用两个符号代替**）、<<、>>
+- 比较运算符：==、>、<
+- 逻辑运算符：and、or、not
+- 长度运算符：len
+- 字符串拼接运算符：..
+
+#### 自动类型转换
+
+- 除法和乘方运算符
+  1. 如果操作数是整数，则提升为浮点数
+  2. 如果操作数是字符串，且可以解析为浮点数，则解析为浮点数
+  3. 进行浮点数运算，结果也是浮点数
+
+- 其他算术运算符
+  1. 全为整数，进行整数运算
+  2. 否则将操作数转换为浮点数，同除法和乘方运算
+  3. 然后进行浮点数运算
+
+- 按位运算符
+  1. 全为整数，无需转换
+  2. 操作数为浮点数，但实际表示的是整数值如100.0，则转换为整数
+  3. 操作数是字符串，且可以解析为整数值如“100”，则解析为整数
+  4. 操作数是字符串，且可以解析为要求2中的浮点数，则->浮点数->整数
+  5. 进行整数运算
+
+- 字符串拼接
+  1. 操作数是字符串，则无需转换
+  2. 操作数是数字，则->字符串
+  3. 拼接操作
+
+**为保证文档内容整洁，剩余实现部分请参考代码，api_arith、api_compare、api_misc**
+
+### 虚拟机
+
