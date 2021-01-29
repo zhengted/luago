@@ -1,37 +1,36 @@
 
 
+* [实现Lua虚拟机、编译器和标准库](#实现lua虚拟机编译器和标准库)
+* [Table of Contents](#table-of-contents)
+  * [Lua虚拟机和API](#lua虚拟机和api)
+    * [二进制Chunk](#二进制chunk)
+      * [整体结构](#整体结构)
+      * [如何解析BinaryChunk](#如何解析binarychunk)
+      * [检查头部和读取函数原型](#检查头部和读取函数原型)
+    * [指令集](#指令集)
+      * [编码模式](#编码模式)
+      * [操作数](#操作数)
+      * [指令解码](#指令解码)
+      * [打印解码内容](#打印解码内容)
+    * [API](#api)
+      * [LuaAPI、LuaState和宿主程序的关系](#luaapiluastate和宿主程序的关系)
+      * [关于Lua栈的索引计算](#关于lua栈的索引计算)
+      * [LuaState](#luastate)
+      * [X方法](#x方法)
+    * [运算符](#运算符)
+      * [Lua运算符介绍](#lua运算符介绍)
+      * [自动类型转换](#自动类型转换)
+    * [虚拟机雏形](#虚拟机雏形)
+      * [PC（Programme Counter）](#pcprogramme-counter)
+      * [指令封装](#指令封装)
+      * [for循环](#for循环)
+        * [forprep](#forprep)
+        * [forloop](#forloop)
+
+Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc.go)
+
 实现Lua虚拟机、编译器和标准库
 =================
-
-Table of Contents
-=================
-
-      * [Lua虚拟机和API](#lua虚拟机和api)
-         * [二进制Chunk](#二进制chunk)
-            * [整体结构](#整体结构)
-            * [如何解析BinaryChunk](#如何解析binarychunk)
-            * [检查头部和读取函数原型](#检查头部和读取函数原型)
-         * [指令集](#指令集)
-            * [编码模式](#编码模式)
-            * [操作数](#操作数)
-            * [指令解码](#指令解码)
-            * [打印解码内容](#打印解码内容)
-         * [API](#api)
-            * [LuaAPI、LuaState和宿主程序的关系](#luaapiluastate和宿主程序的关系)
-            * [关于Lua栈的索引计算](#关于lua栈的索引计算)
-            * [LuaState](#luastate)
-            * [X方法](#x方法)
-         * [运算符](#运算符)
-            * [Lua运算符介绍](#lua运算符介绍)
-            * [自动类型转换](#自动类型转换)
-         * [虚拟机雏形](#虚拟机雏形)
-            * [PC（Programme Counter）](#pcprogramme-counter)
-            * [指令封装](#指令封装)
-            * [for循环](#for循环)
-               * [forprep](#forprep)
-               * [forloop](#forloop)
-
-Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc)
 
 ## Lua虚拟机和API
 
