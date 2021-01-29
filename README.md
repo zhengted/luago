@@ -478,5 +478,163 @@ func printOperands(i Instruction) {
 
 **为保证文档内容整洁，剩余实现部分请参考代码，api_arith、api_compare、api_misc**
 
-### 虚拟机
+### 虚拟机雏形
+
+#### PC（Programme Counter）
+
+- PC是程序计数器，用来记录当前的指令。任务是不停取出指令执行指令
+
+  ```
+  loop {
+  	1.计算PC
+  	2.取出当前指令
+  	3.执行当前指令
+  }
+  ```
+
+- 为了实现PC，使用LuaVM接口，这个接口从LuaState控制，结构如下
+
+  ```go
+  type LuaVM interface {
+  	LuaState
+  	PC() int          // 返回当前PC（仅测试用）
+  	AddPC(n int)      // 修改PC（用于实现跳转指令）
+  	Fetch() uint32    // 取出当前指令；将PC指向下一条指令
+  	GetConst(idx int) // 将指定常量推入栈顶
+  	GetRK(rk int)     // 将指定常量或栈值推入栈顶
+  }
+  ```
+
+#### 指令封装
+
+- 如果根据binchunk中得到的指令进行执行会显得代码臃肿（大量的swich case）
+
+- 方案是将部分指令封装，包括二元算术运算指令和按位运算指令
+
+  - 增加一个通用二元运算的接口
+
+    ```go
+    /*************************** 运算符相关 **************************/
+    // _binaryArith: R(A) := RK(B) op RK(C)
+    func _binaryArith(i Instruction, vm LuaVM, op ArithOp) {
+    	a, b, c := i.ABC()
+    	a += 1
+    	vm.GetRK(b) // 将指定（常量或寄存器索引的值）推入栈顶
+    	vm.GetRK(c)
+    	vm.Arith(op) // 二元运算并将结果赋给栈顶
+    	vm.Replace(a)
+    }
+    ```
+
+  - 所有的二元运算都使用以上接口，以运算sub为例
+
+    ```go
+    func sub(i Instruction, vm LuaVM)  { 
+        _binaryArith(i, vm, LUA_OPSUB) 
+    }  // -
+    ```
+
+  - opcode结构体新增成员
+
+    ```go
+    type opcode struct {
+    	testFlag byte // operator is a test (next instruction must be a jump)
+    	setAFlag byte // instruction set register A
+    	argBMode byte // B arg mode
+    	argCMode byte // C arg mode
+    	opMode   byte // op mode
+    	name     string
+    	action   func(i Instruction, vm api.LuaVM)
+    }
+    ```
+
+**其他的指令处理不赘述了，看源码和图吧，我累了QAQ**
+
+- 二元运算符示例图
+
+  ![image-20210129165738608](https://i.loli.net/2021/01/29/Fw8zV5EKZSr7GOb.png)
+
+- 一元运算符示例图
+
+  ![image-20210129165815064](https://i.loli.net/2021/01/29/6A1FIHdNbxom3TY.png)
+
+- 比较指令示意图（不会修改栈状态）
+
+  ![image-20210129170123818](https://i.loli.net/2021/01/29/YyuGkEWFJxlg42d.png)
+
+#### for循环
+
+- for循环难度比较大，指令内容不好理解，单独出一部分进行讲解
+
+##### forprep
+
+- 先看代码
+
+  ```go
+  // forPrep:R(A) -= R(A+2); pc += sBx
+  // 循环开始前预先给数值减去步长，然后跳转到FORLOOP指令开始循环
+  func forPrep(i Instruction, vm LuaVM) {
+  	a, sBx := i.AsBx()
+  	a += 1
+  
+  	if vm.Type(a) == LUA_TSTRING {
+  		vm.PushNumber(vm.ToNumber(a))
+  		vm.Replace(a)
+  	}
+  	if vm.Type(a+1) == LUA_TSTRING {
+  		vm.PushNumber(vm.ToNumber(a + 1))
+  		vm.Replace(a + 1)
+  	}
+  	if vm.Type(a+2) == LUA_TSTRING {
+  		vm.PushNumber(vm.ToNumber(a + 2))
+  		vm.Replace(a + 2)
+  	}
+  	// R(A) -= R(A+2)
+  	vm.PushValue(a)
+  	vm.PushValue(a + 2)
+  	vm.Arith(LUA_OPSUB)
+  	vm.Replace(a)
+  	// pc += sBx
+  	vm.AddPC(sBx)
+  }
+  ```
+
+- 指令目的：初始化循环，让index先减去步长，让循环能够第一次开始
+
+- 图
+
+  ![image-20210129171957990](https://i.loli.net/2021/01/29/4gO9XWY5AqZPrNV.png)
+
+##### forloop
+
+- forloop的目的则是直接让数值加上步长，如果超出范围则循环结束，否则开始执行代码块
+
+- 代码
+
+  ```go
+  // forLoop: R(A) += R(A+2) if R(A) <= R(A+1) then pc+=sBx; R(A+3) = R(A)
+  //	和ForPrep不一样，先给数值加上步场，然后判断是否在范围内，再执行循环体内的代码
+  func forLoop(i Instruction, vm LuaVM) {
+  	a, sBx := i.AsBx()
+  	a += 1
+  
+  	// R(A) += R(A+2)
+  	vm.PushValue(a + 2)
+  	vm.PushValue(a)
+  	vm.Arith(LUA_OPADD)
+  	vm.Replace(a)
+  
+  	// R(A) <?= R(A+1)
+  	isPositiveStep := vm.ToNumber(a+2) >= 0
+  	if isPositiveStep && vm.Compare(a, a+1, LUA_OPLE) ||
+  		!isPositiveStep && vm.Compare(a+1, a, LUA_OPLE) {
+  		vm.AddPC(sBx)
+  		vm.Copy(a, a+3)
+  	}
+  }
+  ```
+
+- 图
+
+  ![image-20210129172246634](https://i.loli.net/2021/01/29/rBhc5mp2jkUGAMV.png)
 
