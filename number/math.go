@@ -1,6 +1,8 @@
 package number
 
-import "math"
+import (
+	"math"
+)
 
 // FloatToInteger:浮点数转整数
 // todo:思考什么情况下会出现错误
@@ -24,6 +26,7 @@ func FFloorDiv(a, b float64) float64 {
 }
 
 // IMod: 整数类型取模
+// a % b == a - ((a // b) * b)
 func IMod(a, b int64) int64 {
 	return a - IFloorDiv(a, b)*b
 }

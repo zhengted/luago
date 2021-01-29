@@ -7,6 +7,7 @@ import (
 	"luago/binchunk"
 	"luago/state"
 	. "luago/vm"
+	"os"
 )
 
 func main() {
@@ -19,7 +20,39 @@ func main() {
 	// luaStateTestDemo()
 
 	//luaCalcTest
-	luaCalcTestDemo()
+	//luaCalcTestDemo()
+
+	// luaVM_Test
+	if len(os.Args) > 1 {
+		luaVMTestDemo(os.Args[1])
+	}
+
+}
+
+func luaVMTestDemo(filename string) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		panic(err)
+	}
+	proto := binchunk.Undump(data)
+	luaMain(proto)
+}
+
+func luaMain(proto *binchunk.Prototype) {
+	nRegs := int(proto.MaxStackSize)
+	ls := state.New(nRegs+8, proto)
+	ls.SetTop(nRegs)
+	for {
+		pc := ls.PC()
+		inst := Instruction(ls.Fetch())
+		if inst.Opcode() != OP_RETURN {
+			inst.Execute(ls)
+			fmt.Printf("[%02d] %s ", pc+1, inst.OpName())
+			printStack(ls)
+		} else {
+			break
+		}
+	}
 }
 
 func luaCalcTestDemo() {

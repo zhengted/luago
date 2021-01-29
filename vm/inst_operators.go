@@ -41,7 +41,7 @@ func bnot(i Instruction, vm LuaVM) { _unaryArith(i, vm, LUA_OPBNOT) }  // ~
 
 /*************************** 长度计算相关 **************************/
 // _len: R(A) := length of R(B) 计算长度
-func _len(i Instruction, vm LuaVM) {
+func length(i Instruction, vm LuaVM) {
 	a, b, _ := i.ABC()
 	a += 1
 	b += 1

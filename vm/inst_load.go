@@ -29,7 +29,7 @@ func loadBool(i Instruction, vm LuaVM) {
 }
 
 // LoadK:R(A) := Kst(bX) 寄存器索引由A决定，常量表索引由Bx决定
-func LoadK(i Instruction, vm LuaVM) {
+func loadK(i Instruction, vm LuaVM) {
 	a, bx := i.ABx()
 	a += 1
 	vm.GetConst(bx)

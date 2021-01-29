@@ -1,5 +1,7 @@
 package state
 
+import "fmt"
+
 func (self *luaState) PushNil() {
 	self.stack.push(nil)
 }
@@ -18,4 +20,9 @@ func (self *luaState) PushNumber(n float64) {
 
 func (self *luaState) PushString(s string) {
 	self.stack.push(s)
+}
+
+// 测试用
+func (self *luaState) PrintStack() {
+	fmt.Printf("PrintStack %v\n", self.stack.slots)
 }

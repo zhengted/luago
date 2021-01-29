@@ -54,14 +54,14 @@ var operators = []operator{
 // Arith:执行计算
 func (self *luaState) Arith(op ArithOp) {
 	var a, b luaValue
-	b = self.stack.pop()
+	a = self.stack.pop()
 	if op != LUA_OPUNM && op != LUA_OPBNOT {
-		a = self.stack.pop()
+		b = self.stack.pop()
 	} else {
 		// 针对只有一个操作数的运算符
-		a = b
+		b = a
 	}
-
+	// 这里作者好像有个笔误 应该是先取出a操作数，再取出b操作数
 	operator := operators[op]
 	if result := _arith(a, b, operator); result != nil {
 		self.stack.push(result)
