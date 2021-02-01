@@ -1,6 +1,8 @@
 package vm
 
-import "luago/api"
+import (
+	"luago/api"
+)
 
 const (
 	MAXARG_Bx  = 1<<18 - 1      // 2^18 - 1 = 262143
@@ -17,8 +19,8 @@ func (self Instruction) Opcode() int {
 // ABC:ABC模式提取操作数
 func (self Instruction) ABC() (a, b, c int) {
 	a = int(self >> 6 & 0xFF)
-	b = int(self >> 14 & 0x1FF)
-	c = int(self >> 23 & 0x1FF)
+	c = int(self >> 14 & 0x1FF)
+	b = int(self >> 23 & 0x1FF)
 	return
 }
 

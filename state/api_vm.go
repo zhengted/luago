@@ -2,24 +2,24 @@ package state
 
 // PC:获取当前的PC
 func (self *luaState) PC() int {
-	return self.pc
+	return self.stack.pc
 }
 
 // AddPC:跳转到指定行指令
 func (self *luaState) AddPC(n int) {
-	self.pc += n
+	self.stack.pc += n
 }
 
 // Fetch: 获取当前指令，并且让指令计数器+1
 func (self *luaState) Fetch() uint32 {
-	i := self.proto.Code[self.pc]
-	self.pc++
+	i := self.stack.closure.proto.Code[self.stack.pc]
+	self.stack.pc++
 	return i
 }
 
 // GetConst:从函数原型中获取一个常熟并压入栈中
 func (self *luaState) GetConst(idx int) {
-	c := self.proto.Constants[idx]
+	c := self.stack.closure.proto.Constants[idx]
 	self.stack.push(c)
 }
 
@@ -30,6 +30,7 @@ func (self *luaState) GetRK(rk int) {
 		// 将常量值推入栈顶
 		self.GetConst(rk & 0xFF)
 	} else {
+		// rk相关的在这里已经+1了无需处理
 		self.PushValue(rk + 1)
 	}
 }

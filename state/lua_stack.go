@@ -2,15 +2,19 @@ package state
 
 // luaStack:lua栈目前定义 栈+top
 type luaStack struct {
-	slots []luaValue
-	top   int
+	slots   []luaValue
+	top     int
+	prev    *luaStack
+	closure *closure
+	varargs []luaValue
+	pc      int
 }
 
 // newLuaStack:工厂创建lua栈
 func newLuaStack(size int) *luaStack {
 	return &luaStack{
-		make([]luaValue, size),
-		0,
+		slots: make([]luaValue, size),
+		top:   0,
 	}
 }
 

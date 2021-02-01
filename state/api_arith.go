@@ -54,14 +54,16 @@ var operators = []operator{
 // Arith:执行计算
 func (self *luaState) Arith(op ArithOp) {
 	var a, b luaValue
-	a = self.stack.pop()
+	b = self.stack.pop()
 	if op != LUA_OPUNM && op != LUA_OPBNOT {
-		b = self.stack.pop()
+		a = self.stack.pop()
 	} else {
 		// 针对只有一个操作数的运算符
-		b = a
+		a = b
 	}
 	// 这里作者好像有个笔误 应该是先取出a操作数，再取出b操作数
+	// 更正 并非作者笔误，起初在写abc模式提取操作数时，误认为排列时cba，
+	// 	实际上的排列是 B(9位) C(9位) A(8位) OPCODE(6位)
 	operator := operators[op]
 	if result := _arith(a, b, operator); result != nil {
 		self.stack.push(result)

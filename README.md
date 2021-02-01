@@ -668,3 +668,77 @@ func printOperands(i Instruction) {
 
   ![image-20210129172246634](https://i.loli.net/2021/01/29/rBhc5mp2jkUGAMV.png)
 
+### 表
+
+#### 结构
+
+```go
+type luaTable struct {
+   arr  []luaValue            // lua表数组部分
+   _map map[luaValue]luaValue // lua表哈希部分
+}
+```
+
+#### Lua表是如何扩容的
+
+- 思考：Lua表定义 local t = {1,2}，此时如果定义t[4] = "ok"，4的存储是在哈希表还是数组？如果再向表中插入键值为3的数据，lua表的存储结构会发生什么变化？先插入3和先插入4，表的变化情况是什么样的？
+
+- 解答：定义使用的是setlist指令，此时的表是有序的。索引4已经超出了数组部分的长度，因此存在哈希部分中，如果再插入索引3，3刚好满足长度加一，会使数组部分扩容，同时扩容后会在哈希表中查找符合**条件**的递增索引，比如4、5、6（如果都有的话）插入到数组部分中。收缩同理。
+
+- 代码如下：
+
+  ```go
+  // _shrinkArray: 删除数组中多余的hole（值为nil的key）
+  func (self *luaTable) _shrinkArray() {
+  	for i := len(self.arr) - 1; i >= 0; i-- {
+  		if self.arr[i] == nil {
+  			self.arr = self.arr[0:i]
+  		}
+  	}
+  }
+  
+  // _expandArray: 数组动态扩展
+  func (self *luaTable) _expandArray() {
+  	for idx := int64(len(self.arr)) + 1; true; idx++ {
+  		if val, found := self._map[idx]; found {
+  			delete(self._map, idx)
+  			self.arr = append(self.arr, val)
+  		} else {
+  			break
+  		}
+  	}
+  }
+  ```
+
+#### 核心方法
+
+- createTable&newTable 建表
+
+  - 区别在于是否携带了初始化大小
+  - 伪代码表示为 R(A) := {} (size = B,C)
+  - ![image-20210201162328743](https://i.loli.net/2021/02/01/l3BxG1aOkU5JrHc.png)
+
+- setTable  表内元素设值
+
+  - 伪代码表示为 R(A)[Rk(B)] := RK(C)，图以寄存器为例，常量例不赘述
+  - ![image-20210201162850075](https://i.loli.net/2021/02/01/HskWdAZ7pz2FMoO.png)
+
+- getTable  取出某个键对应的值
+
+  - 伪代码表示 R(A) := R(B)[RK(C)]
+  - ![image-20210201163000507](https://i.loli.net/2021/02/01/CwXaLW1H3bPqGE5.png)
+
+- （番外）setList  批量设值
+
+  - 这个方法用于初始化表定义。如果表初始化方式是这样的
+
+    ```lua
+    local t = {1,2,3,4}
+    ```
+
+    则表中的四个常量会先加载到常量表，再加载到寄存器中。SETLIST通过获取寄存器中的值初始化lua表结构
+
+    具体操作参考setList(i Instruction, vm LuaVM)方法
+
+**核心方法**也是对应指令。有了前面的铺垫，这部分的开发内容比较简单，难点在于理解lua表结构和扩容机制
+

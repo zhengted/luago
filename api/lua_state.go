@@ -52,4 +52,19 @@ type LuaState interface {
 
 	// 测试用
 	PrintStack() // 打印栈
+
+	/* get functions (Lua -> stack) 都是放到栈里的*/
+	NewTable()
+	CreateTable(nArr, nRec int)
+	GetTable(idx int) LuaType
+	GetField(idx int, k string) LuaType
+	GetI(idx int, i int64) LuaType
+
+	/* set functions (stack->Lua) */
+	SetTable(idx int)
+	SetField(idx int, k string)
+	SetI(idx int, n int64)
+
+	Load(chunk []byte, chunkName, mode string) int // 加载chunk（二进制chunk或Lua文件）
+	Call(nArgs, nResult int)
 }
