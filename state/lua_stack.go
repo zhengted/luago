@@ -35,6 +35,21 @@ func (self *luaStack) push(val luaValue) {
 	self.top++
 }
 
+// pushN:将多个值（luaValue）压入栈顶，n和len(luaValue)多退少补
+func (self *luaStack) pushN(vals []luaValue, n int) {
+	nVals := len(vals)
+	if n < 0 {
+		n = nVals
+	}
+	for i := 0; i < n; i++ {
+		if i < nVals {
+			self.push(vals[i])
+		} else {
+			self.push(nil)
+		}
+	}
+}
+
 // pop: 弹出，返回栈顶元素
 func (self *luaStack) pop() luaValue {
 	if self.top < 1 {
@@ -44,6 +59,15 @@ func (self *luaStack) pop() luaValue {
 	val := self.slots[self.top]
 	self.slots[self.top] = nil // 如何正确处理删除切片元素，这里如果使用切片移动指针的方式，会造成内存泄漏，因为切片为接口类型切片
 	return val
+}
+
+// popN: 弹出栈顶指定数量的值
+func (self *luaStack) popN(n int) []luaValue {
+	vals := make([]luaValue, n)
+	for i := 0; i < n; i++ {
+		vals[i] = self.pop()
+	}
+	return vals
 }
 
 // absIndex: 把索引转换为绝对索引

@@ -40,7 +40,7 @@ func luaVMTestDemo(filename string) {
 
 func luaMain(proto *binchunk.Prototype) {
 	nRegs := int(proto.MaxStackSize)
-	ls := state.New(nRegs+8, proto)
+	ls := state.New()
 	ls.SetTop(nRegs)
 	for {
 		pc := ls.PC()
@@ -56,7 +56,7 @@ func luaMain(proto *binchunk.Prototype) {
 }
 
 func luaCalcTestDemo() {
-	ls := state.New(20, nil)
+	ls := state.New()
 	ls.PushInteger(1)
 	ls.PushString("2.0")
 	ls.PushString("3.0")
@@ -76,7 +76,7 @@ func luaCalcTestDemo() {
 }
 
 func luaStateTestDemo() {
-	ls := state.New(20, nil)
+	ls := state.New()
 
 	ls.PushBoolean(true)
 	printStack(ls)
