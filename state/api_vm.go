@@ -38,3 +38,24 @@ func (self *luaState) GetRK(rk int) {
 // 注意：GetRK的参数是OpArgK类型的，取决于9个比特中的第一个
 // 虚拟机指令操作数携带的寄存器索引是从0开始的，lua栈API索引是从1开始的
 // 因此寄存器索引当成栈索引使用时要+1
+
+// RegisterCount:返回当前Lua函数所操作的寄存器数量
+func (self *luaState) RegisterCount() int {
+	return int(self.stack.closure.proto.MaxStackSize)
+}
+
+//LoadVararg(n int):传递给当前Lua函数的变长参数推入栈顶
+func (self *luaState) LoadVararg(n int) {
+	if n < 0 {
+		n = len(self.stack.varargs)
+	}
+	self.stack.check(n)
+	self.stack.pushN(self.stack.varargs, n)
+}
+
+//LoadProto(idx int):把当前Lua函数的子函数原型 实例化为闭包推入栈顶
+func (self *luaState) LoadProto(idx int) {
+	proto := self.stack.closure.proto.Protos[idx]
+	closure := newLuaClosure(proto)
+	self.stack.push(closure)
+}

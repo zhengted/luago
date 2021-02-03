@@ -3,6 +3,7 @@ package vm
 import . "luago/api"
 
 // closure: ABx，R(A) := closure(KPROTO[Bx]) 将Bx所指向的原型表中的内容压入寄存器中
+//		把当前Lua函数的子函数原型实例化为闭包
 func closure(i Instruction, vm LuaVM) {
 	a, bx := i.ABx()
 	a += 1
@@ -36,6 +37,40 @@ func _return(i Instruction, vm LuaVM) {
 		_fixStack(a, vm)
 	}
 }
+
+// vararg:R(A),R(A+1),...,R(A+B-2) = vararg
+func vararg(i Instruction, vm LuaVM) {
+	a, b, _ := i.ABC()
+	a += 1
+	if b != 1 {
+		vm.LoadVararg(b - 1)
+		_popResult(a, b, vm)
+	}
+}
+
+// TailCall:尾调用 return f(args)
+// 		return R(A)(R(A+1),...,R(A+B-1))
+func tailCall(i Instruction, vm LuaVM) {
+	a, b, _ := i.ABC()
+	a += 1
+	c := 0
+	nArgs := _pushFuncAndArgs(a, b, vm)
+	vm.Call(nArgs, c-1)
+	_popResult(a, c, vm)
+}
+
+// self:R(A+1) := R(B); R(A) := R(B)[RK(c)]
+func self(i Instruction, vm LuaVM) {
+	a, b, c := i.ABC()
+	a += 1
+	b += 1
+	vm.Copy(b, a+1)
+	vm.GetRK(c)
+	vm.GetTable(b)
+	vm.Replace(a)
+}
+
+// TODO:这块的内容需要画图理解，暂时还没搞太懂，花时间再看一遍书 21.2.3
 
 // _pushFuncAndArgs:
 func _pushFuncAndArgs(a, b int, vm LuaVM) int {

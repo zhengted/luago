@@ -43,7 +43,7 @@ func (self *luaState) callLuaClosure(nArgs, nResults int, c *closure) {
 	self.runLuaClosure()
 	self.popLuaStack()
 
-	// 5. 将结果压入栈中
+	// 5. 将结果压入旧的调用栈中
 	if nResults != 0 {
 		results := newStack.popN(newStack.top - nRegs)
 		self.stack.push(len(results))
