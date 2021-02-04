@@ -1,6 +1,9 @@
 package state
 
-import "fmt"
+import (
+	"fmt"
+	"luago/api"
+)
 
 func (self *luaState) PushNil() {
 	self.stack.push(nil)
@@ -25,4 +28,8 @@ func (self *luaState) PushString(s string) {
 // 测试用
 func (self *luaState) PrintStack() {
 	fmt.Printf("PrintStack %v\n", self.stack.slots)
+}
+
+func (self *luaState) PushGoFunction(f api.GoFunction) {
+	self.stack.push(newGoClosure(f))
 }

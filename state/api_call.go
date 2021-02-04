@@ -1,7 +1,7 @@
 package state
 
 import (
-	"fmt"
+	"luago/api"
 	"luago/binchunk"
 )
 import "luago/vm"
@@ -26,7 +26,7 @@ func (self *luaState) callLuaClosure(nArgs, nResults int, c *closure) {
 	isVararg := c.proto.IsVararg == 1
 
 	// 2. 创建一个新的调用帧，把闭包（函数原型）和调用帧联系起来
-	newStack := newLuaStack(nRegs + 20)
+	newStack := newLuaStack(nRegs+api.LUA_MINSTACK, self)
 	newStack.closure = c
 
 	// 3. 调用popN把函数和参数值一次性从栈顶弹出，
@@ -51,6 +51,27 @@ func (self *luaState) callLuaClosure(nArgs, nResults int, c *closure) {
 	}
 }
 
+func (self *luaState) callGoClosure(nArgs, nResults int, c *closure) {
+	// 这个nResults 是结果存放位置的初始索引
+
+	newStack := newLuaStack(nArgs+api.LUA_MINSTACK, self)
+	newStack.closure = c
+
+	args := self.stack.popN(nArgs)
+	newStack.pushN(args, nArgs)
+	self.stack.pop()
+
+	self.pushLuaStack(newStack)
+	r := c.goFunc(self)
+	self.popLuaStack()
+
+	if nResults != 0 {
+		results := newStack.popN(r)
+		self.stack.check(len(results))
+		self.stack.pushN(results, nResults)
+	}
+}
+
 // runLuaClosure:调用栈顶函数
 func (self *luaState) runLuaClosure() {
 	for {
@@ -68,9 +89,11 @@ func (self *luaState) runLuaClosure() {
 func (self *luaState) Call(nArgs, nResults int) {
 	val := self.stack.get(-(nArgs + 1))
 	if c, ok := val.(*closure); ok {
-		fmt.Printf("call %s<%d,%d>\n", c.proto.Source, c.proto.LineDefined,
-			c.proto.LastLineDefined)
-		self.callLuaClosure(nArgs, nResults, c)
+		if c.proto != nil {
+			self.callLuaClosure(nArgs, nResults, c)
+		} else {
+			self.callGoClosure(nArgs, nResults, c)
+		}
 	} else {
 		panic("not function")
 	}

@@ -3,6 +3,7 @@ package api
 type LuaType = int
 type ArithOp = int
 type CompareOp = int
+type GoFunction func(state LuaState) int // Go函数类型
 
 type LuaState interface {
 	// 基本栈操作
@@ -65,6 +66,12 @@ type LuaState interface {
 	SetField(idx int, k string)
 	SetI(idx int, n int64)
 
+	// 函数相关方法
 	Load(chunk []byte, chunkName, mode string) int // 加载chunk（二进制chunk或Lua文件）
 	Call(nArgs, nResult int)
+
+	// Go调用相关方法
+	PushGoFunction(f GoFunction)
+	IsGoFunction(idx int) bool
+	ToGoFunction(idx int) GoFunction
 }
