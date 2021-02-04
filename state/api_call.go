@@ -46,7 +46,7 @@ func (self *luaState) callLuaClosure(nArgs, nResults int, c *closure) {
 	// 5. 将结果压入旧的调用栈中
 	if nResults != 0 {
 		results := newStack.popN(newStack.top - nRegs)
-		self.stack.push(len(results))
+		self.stack.push(len(results)) // 草（一种植物），结果在被压入栈时会先压一个结果长度入栈
 		self.stack.pushN(results, nResults)
 	}
 }
@@ -63,6 +63,8 @@ func (self *luaState) runLuaClosure() {
 }
 
 // Call: 函数调用
+// 	参数说明：nArgs 参数在寄存器中的索引  nResult：结果值的初始索引（因为会有多个返回值）
+//	也可以理解成被调函数的在寄存器中的索引
 func (self *luaState) Call(nArgs, nResults int) {
 	val := self.stack.get(-(nArgs + 1))
 	if c, ok := val.(*closure); ok {

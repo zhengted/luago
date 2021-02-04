@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	. "luago/api"
 	"luago/number"
 	"math"
@@ -68,6 +69,7 @@ func (self *luaState) Arith(op ArithOp) {
 	if result := _arith(a, b, operator); result != nil {
 		self.stack.push(result)
 	} else {
+		fmt.Printf("Error arith op:%d\n", op)
 		panic("arithmetic error!")
 	}
 }

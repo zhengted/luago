@@ -4,10 +4,10 @@ package state
 type luaStack struct {
 	slots   []luaValue
 	top     int
-	prev    *luaStack
-	closure *closure
-	varargs []luaValue
-	pc      int
+	prev    *luaStack  // prev:与函数执行没有关系，让调用帧变成链表结点
+	closure *closure   // closure:闭包，可以理解成函数原型
+	varargs []luaValue // varargs:变长参数，
+	pc      int        // pc:指令计数器
 }
 
 // newLuaStack:工厂创建lua栈

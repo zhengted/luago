@@ -36,6 +36,7 @@ func setTable(i Instruction, vm LuaVM) {
 
 // setList: R(A)[(C-1)*FPF【C表示批次数，FPF默认50】+i] := R(A+i),
 //	1 <= i <= B
+//  21.2.4 新增修改：当表构造器的最后一个元素是函数调用或者vararg的时候，Lua会把产生的所有值都收集起来
 func setList(i Instruction, vm LuaVM) {
 	a, b, c := i.ABC()
 	a += 1
@@ -47,10 +48,27 @@ func setList(i Instruction, vm LuaVM) {
 		c = Instruction(vm.Fetch()).Ax()
 	}
 
+	bIsZero := b == 0
+	if bIsZero {
+		b = int(vm.ToInteger(-1)) - a - 1
+		vm.Pop(1)
+	}
+
 	idx := int64(c * LFIELDS_PER_FLUSH)
 	for j := 1; j <= b; j++ {
 		idx++
 		vm.PushValue(a + j)
 		vm.SetI(a, idx)
+	}
+
+	if bIsZero {
+		for j := vm.RegisterCount() + 1; j <= vm.GetTop(); j++ {
+			idx++
+			vm.PushValue(j)
+			vm.SetI(a, idx)
+		}
+
+		// clear stack
+		vm.SetTop(vm.RegisterCount())
 	}
 }

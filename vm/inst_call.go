@@ -1,9 +1,12 @@
 package vm
 
-import . "luago/api"
+import (
+	. "luago/api"
+)
 
-// closure: ABx，R(A) := closure(KPROTO[Bx]) 将Bx所指向的原型表中的内容压入寄存器中
-//		把当前Lua函数的子函数原型实例化为闭包
+// closure: ABx，R(A) := closure(KPROTO[Bx]) 把当前Lua函数的子原型实例化为闭包。
+//	从当前闭包的子函数原型表中取出原型（用Bx去索引），实例化为闭包，
+//	并推入LuaState栈顶，再从栈顶弹出赋值到指定寄存器（A）上
 func closure(i Instruction, vm LuaVM) {
 	a, bx := i.ABx()
 	a += 1
@@ -21,7 +24,8 @@ func call(i Instruction, vm LuaVM) {
 	_popResult(a, c, vm)
 }
 
-// _return:
+// _return:A表示返回值第一项的栈索引，通过B能计算数量
+// 把存放在连续多个寄存器里的值返回给主调函数。A决定第一个寄存器索引，寄存器数量由B决定
 func _return(i Instruction, vm LuaVM) {
 	a, b, _ := i.ABC()
 	a += 1
@@ -34,11 +38,13 @@ func _return(i Instruction, vm LuaVM) {
 			vm.PushValue(i)
 		}
 	} else {
+		// 经过函数调用的已经在栈顶了，将另一部分压入栈然后旋转
 		_fixStack(a, vm)
 	}
 }
 
-// vararg:R(A),R(A+1),...,R(A+B-2) = vararg
+// vararg:R(A),R(A+1),...,R(A+B-2) = vararg 对应Lua脚本里的...
+// 		把传递给当前函数的变长参数加载到连续多个寄存器中。第一个寄存器由A指定，寄存器数量由B指定
 func vararg(i Instruction, vm LuaVM) {
 	a, b, _ := i.ABC()
 	a += 1
@@ -60,6 +66,8 @@ func tailCall(i Instruction, vm LuaVM) {
 }
 
 // self:R(A+1) := R(B); R(A) := R(B)[RK(c)]
+// 把对象和方法拷贝到相邻的两个目标寄存器中，
+//	对象本身在寄存器中，索引由操作数B决定。方法名在常量表中，索引由操作数决定
 func self(i Instruction, vm LuaVM) {
 	a, b, c := i.ABC()
 	a += 1
@@ -70,9 +78,7 @@ func self(i Instruction, vm LuaVM) {
 	vm.Replace(a)
 }
 
-// TODO:这块的内容需要画图理解，暂时还没搞太懂，花时间再看一遍书 21.2.3
-
-// _pushFuncAndArgs:
+// _pushFuncAndArgs:确定可变参数的数量
 func _pushFuncAndArgs(a, b int, vm LuaVM) int {
 	if b-1 >= 0 {
 		vm.CheckStack(b)
@@ -87,19 +93,23 @@ func _pushFuncAndArgs(a, b int, vm LuaVM) int {
 	}
 }
 
-// _fixStack
+// _fixStack：调整可变参数的位置
 func _fixStack(a int, vm LuaVM) {
+	// 先将栈顶取出来，此时栈顶表示的是，变长参数所在的寄存器索引
 	x := int(vm.ToInteger(-1))
 	vm.Pop(1)
 
+	// 常规的将函数和参数压入栈
 	vm.CheckStack(x - a)
 	for i := a; i < x; i++ {
 		vm.PushValue(i)
 	}
+
+	// 将变长参数挪到栈顶
 	vm.Rotate(vm.RegisterCount()+1, x-a)
 }
 
-// _popResult
+// _popResult：
 func _popResult(a, c int, vm LuaVM) {
 	if c == 1 {
 		// no result
@@ -110,7 +120,8 @@ func _popResult(a, c int, vm LuaVM) {
 			vm.Replace(i)
 		}
 	} else {
-		// c == 0 让返回值们留在栈顶，再往其中推入一个目标寄存器的索引入栈
+		// c == 0 让返回值们留在栈中，再往其中推入一个目标寄存器的索引入栈
+		// 如果被调用到就先将目标寄存器的索引取出 再旋转栈
 		vm.CheckStack(1)
 		vm.PushInteger(int64(a))
 	}
