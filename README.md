@@ -742,3 +742,202 @@ type luaTable struct {
 
 **核心方法**也是对应指令。有了前面的铺垫，这部分的开发内容比较简单，难点在于理解lua表结构和扩容机制
 
+### 函数调用
+
+#### Lua函数调用的机制
+
+- 参数灵活
+
+  - 声明是a个参数，可以传a+n个参数，只是后面n个不会被接收
+
+  - 赋值返回同理
+
+    ```lua
+    function f()
+        return 1,2,3
+    end
+    a,b = (f())		-- 这种情况 a = 1, b = nil
+    a,b,c = 5,f(),5	-- a = 5,b = 1,c = 5
+    ```
+
+    
+
+#### 调用栈
+
+- 函数调用是借助**调用栈**实现的，函数调用栈中存放的是**调用栈帧**
+
+##### 调用函数的过程
+
+1. 先向调用栈中推入一个调用帧，并把参数传递给调用帧。
+
+2. 函数依托调用帧执行指令，期间可能会调用其他函数。
+
+3. 当函数执行完毕后，调用帧里会留下函数需要返回的值。
+
+4. 将调用帧弹出，并且把返回值返回给底部的调用帧
+
+   ![image-20210204102526075](https://i.loli.net/2021/02/04/9iTJjAkFCK2XqeD.png)
+
+   - f()内部调用g()，g()内部调用h()
+
+```go
+// 调用栈结构
+type luaStack struct {
+	slots   []luaValue
+	top     int
+	prev    *luaStack  // prev:与函数执行没有关系，让调用帧变成链表结点，不要被字面意思误导
+	closure *closure   // closure:闭包，可以理解成函数原型
+	varargs []luaValue // varargs:变长参数，
+	pc      int        // pc:指令计数器
+}
+```
+
+- push和pop方法用于明确当前使用的是哪个调用帧
+
+![image-20210204103226492](https://i.loli.net/2021/02/04/4AUpF1aImfE3XY8.png)
+
+#### 函数调用API
+
+- 解释器在执行脚本之前，先把脚本装进一个主函数，然后把主函数编译成proto交给lua虚拟机去运行
+
+##### Load方法
+
+- 把主函数原型实例化为闭包并推入栈顶，除了能加载预编译的chunk，也可以直接加载Lua脚本
+- 示意图如下
+
+![image-20210204104428743](https://i.loli.net/2021/02/04/hz3BAC1xLJvoTOd.png)
+
+```go
+/*
+	Load: 加载chunk，可以是lua也可以是编译后的二进制chunk，根据mode来决定
+		返回值为状态码：0表示成功
+*/
+func (self *luaState) Load(chunk []byte, chunkName, mode string) int {
+	proto := binchunk.Undump(chunk)
+	c := newLuaClosure(proto)
+	self.stack.push(c)
+	return 0
+}
+```
+
+##### Call方法
+
+- 对Lua函数进行调用，先把被调函数和参数推入栈顶，Call方法结束后，参数和被调函数被替换成返回值。遵循**多退少补**的原则
+
+- 代码如下
+
+  ```go
+  // Call: 函数调用
+  func (self *luaState) Call(nArgs, nResults int) {
+  	val := self.stack.get(-(nArgs + 1))
+  	if c, ok := val.(*closure); ok {
+  		fmt.Printf("call %s<%d,%d>\n", c.proto.Source, c.proto.LineDefined,
+  			c.proto.LastLineDefined)
+  		self.callLuaClosure(nArgs, nResults, c)
+  	} else {
+  		panic("not function")
+  	}
+  }
+  ```
+
+###### 详细过程
+
+**可参考上面的[调用函数](#调用函数的过程)的过程**，这里只做代码展示
+
+```go
+// callLuaClosure:具体逻辑，
+func (self *luaState) callLuaClosure(nArgs, nResults int, c *closure) {
+	// 1. 初始化信息，确定寄存器的数量，定义函数时声明的固定参数数量、
+	//	以及是否是vararg函数（会是当扩大）
+	nRegs := int(c.proto.MaxStackSize)
+	nParams := int(c.proto.NumParams)
+	isVararg := c.proto.IsVararg == 1
+
+	// 2. 创建一个新的调用帧，把闭包（函数原型）和调用帧联系起来
+	newStack := newLuaStack(nRegs + 20)
+	newStack.closure = c
+
+	// 3. 调用popN把函数和参数值一次性从栈顶弹出，
+	//	然后调用新帧的pushN方法按照固定参数数量传入参数
+	funcAndArgs := self.stack.popN(nArgs + 1)
+	newStack.pushN(funcAndArgs[1:], nParams)
+	newStack.top = nRegs
+	if nArgs > nParams && isVararg {
+		newStack.varargs = funcAndArgs[nParams+1:]
+	}
+
+	// 4. 将新帧push进调用栈栈顶，让他成为当前帧，最后调用runLuaClosure
+	self.pushLuaStack(newStack)
+	self.runLuaClosure()
+	self.popLuaStack()
+
+	// 5. 将结果压入旧的调用栈中
+	if nResults != 0 {
+		results := newStack.popN(newStack.top - nRegs)
+		self.stack.push(len(results))
+		self.stack.pushN(results, nResults)
+	}
+}
+```
+
+#### 函数调用指令
+
+- closure：把当前Lua函数的子原型实例化为闭包。从当前闭包的子函数原型表中取出原型（用Bx去索引），实例化为闭包，并推入LuaState栈顶，再从栈顶弹出赋值到指定寄存器（A）上
+
+  ```go
+  func closure(i Instruction, vm LuaVM) {
+  	a, bx := i.ABx()
+  	a += 1
+  	vm.LoadProto(bx)
+  	vm.Replace(a)
+  }
+  ```
+
+- call：调用Lua函数。A：被调函数在寄存器中的索引（记得加一），B：决定参数数量，紧挨着A，C：决定返回值数量
+
+  - 示意图如下
+
+  ![image-20210204110729337](https://i.loli.net/2021/02/04/HWXtl1Ng7AC2SkI.png)
+
+  - 代码
+
+    ```go
+    // call:iABC,R(A), ... , R(A+C-2) := R(A)(R(A+1),...,R(A+B-1))
+    func call(i Instruction, vm LuaVM) {
+    	a, b, c := i.ABC()
+    	a += 1
+    	nArgs := _pushFuncAndArgs(a, b, vm)	// 把被调函数和参数值推入栈顶
+    	vm.Call(nArgs, c-1)
+    	_popResult(a, c, vm)		//将原来栈顶的内容替换成指定数量的返回值
+    }
+    
+    ```
+
+  **这一段比较难，有机会写篇文档专门讲这块**
+
+  - 关于_pushFuncAndArgs和\_popResult方法的解释
+    - \_popResult方法：
+      - 如果c > 1，按序replace栈即可。
+      - 如果c == 1，返回值数量为0，无需操作。
+      - 如果c == 0，需要把被调函数的返回值全部返回，并往栈顶推入一个整数值标记这些返回值原本要移动到哪些寄存器中。这种情况其实是编译器不知道调用之后会有几个返回值，即参数中有一个被调函数，如这种```f(1,2,g())```
+      - 关于第三种情况其实可以不需要操作，因为在下次使用时一定是在栈顶，只需要入栈一个返回值初始位置索引
+    - _pushFuncAndArgs和上面一样
+      - 如果b >= 1，按序入栈即可，返回b - 1表示参数个数
+      - b = 0，参数数量不确定。先把栈顶取出，得到变长参数所在的寄存器的位置，再将函数和参数入栈。进行旋转让变长参数长度和变长参数到达栈顶
+
+- return指令：把存放在连续多个寄存器里的值返回给主调函数。A决定第一个寄存器索引，寄存器数量由B决定
+  - b = 1 无返回值 无需操作
+  - b > 1 按序入栈即可
+  - b = 0 特殊情况调用fixstack
+
+- vararg指令：把传递给当前函数的变长参数加载到连续多个寄存器中。第一个寄存器由A指定，寄存器数量由B指定
+  - b > 1 把b-1个vararg参数复制到寄存器
+  - b == 0 把全部vararg参数复制到寄存器
+
+- tailcall指令：用于解决调用栈溢出问题使被调函数重用主调函数的调用帧
+
+- self指令：语法糖 obj: f(a,b,c) 等价于 obj.f(obj,a,b,c)
+
+  - 把对象和方法拷贝到相邻的两个目标寄存器中，对象本身在寄存器中，索引由操作数B决定。方法名在常量表中，索引由操作数决定
+
+    ![image-20210204154050509](https://i.loli.net/2021/02/04/jm5sKpIg6YqhWkE.png)
