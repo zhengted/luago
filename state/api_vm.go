@@ -55,7 +55,28 @@ func (self *luaState) LoadVararg(n int) {
 
 //LoadProto(idx int):把当前Lua函数的子函数原型 实例化为闭包推入栈顶
 func (self *luaState) LoadProto(idx int) {
+	stack := self.stack
+	subProto := stack.closure.proto.Protos[idx]
 	proto := self.stack.closure.proto.Protos[idx]
 	closure := newLuaClosure(proto)
 	self.stack.push(closure)
+	//加载UpValue
+	for i, uvInfo := range subProto.Upvalues {
+		uvIdx := int(uvInfo.Idx)
+		if uvInfo.Instack == 1 {
+			// 如果某个Upvalue捕获的是当前函数的局部变量，只要访问当前函数的局部变量即可
+			if stack.openuvs == nil {
+				stack.openuvs = map[int]*upvalue{}
+			}
+			if openuv, found := stack.openuvs[uvIdx]; found {
+				closure.upvals[i] = openuv
+			} else {
+				closure.upvals[i] = &upvalue{&stack.slots[uvIdx]}
+			}
+		} else {
+			// 更外围函数的局部变量
+			closure.upvals[i] = stack.closure.upvals[uvIdx]
+		}
+	}
+
 }

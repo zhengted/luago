@@ -31,7 +31,7 @@ func (self *luaState) PrintStack() {
 }
 
 func (self *luaState) PushGoFunction(f api.GoFunction) {
-	self.stack.push(newGoClosure(f))
+	self.stack.push(newGoClosure(f, 0))
 }
 
 // PushGlobalTable:将全局表push进栈
