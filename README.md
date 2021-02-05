@@ -941,3 +941,68 @@ func (self *luaState) callLuaClosure(nArgs, nResults int, c *closure) {
   - 把对象和方法拷贝到相邻的两个目标寄存器中，对象本身在寄存器中，索引由操作数B决定。方法名在常量表中，索引由操作数决定
 
     ![image-20210204154050509](https://i.loli.net/2021/02/04/jm5sKpIg6YqhWkE.png)
+
+### Go函数调用
+
+- go函数类型
+
+  ```go
+  type GoFunction func (LuaState) int
+  ```
+  - Go函数必须满足这样的签名：接受一个Lua接口类型的参数，返回一个整数表示返回值数量。因为Go是强类型语言，不需要对栈进行清理，函数返回值数量运行时是确定的。
+
+- 约定好闭包内有两个成员，Lua函数原型和Go函数，Lua函数原型为nil的时候则表示该闭包为Go闭包，Go函数为nil的时候则该闭包为Lua闭包
+
+- go函数调用和Lua的函数调用过程基本是一致的
+
+  ```go
+  func (self *luaState) callGoClosure(nArgs, nResults int, c *closure) {
+  	// 这个nResults 是结果存放位置的初始索引
+  
+  	newStack := newLuaStack(nArgs+api.LUA_MINSTACK, self)
+  	newStack.closure = c
+  
+  	args := self.stack.popN(nArgs)
+  	newStack.pushN(args, nArgs)
+  	self.stack.pop()
+  
+  	self.pushLuaStack(newStack)
+  	r := c.goFunc(self)
+  	self.popLuaStack()
+  
+  	if nResults != 0 {
+  		results := newStack.popN(r)
+  		self.stack.check(len(results))
+  		self.stack.pushN(results, nResults)
+  	}
+  }
+  ```
+
+#### 几个常量
+
+```go
+const (
+	LUA_MINSTACK            = 20                    // 最小栈大小
+	LUAI_MAXSTACK           = 1000000               // lua栈的最大索引
+	LUA_REGISTRYINDEX       = -LUAI_MAXSTACK - 1000 // 注册表的伪索引	luastate在操作时用这个值作为索引，用代码判断如果给的是这个值则判定为注册表，具体查看abs isValid等相关方法
+	LUA_RIDX_GLOBALS  int64 = 2                     // 定义全局环境在注册表中的索引
+)
+```
+
+
+
+#### 注册表相关
+
+- 注册表的类型是Lua表。Lua注册表虽说是给用户准备的，用户可以往其中放入任何Lua值，包括闭包。但是Lua的全局变量本身也用到了它
+
+- 伪索引的位置
+
+  ![image-20210205121323420](https://i.loli.net/2021/02/05/KOsX3C5t7j2ifUJ.png)
+
+- 因此如get、set、abs以及isValid相关的方法都需要修改并支持
+
+- 针对注册表，新增了几个API
+  - PushGlobalTable()  将全局表推入lua栈
+  - GetGlobal(name string) 获取全局表中键值为name的值并推入栈顶
+  - SetGlobal(name string) 给当前栈顶元素赋予name为键值加入全局表（会弹出）
+  - Register(name string, f GoFunction) 只用于注册Go函数值，不会改变Lua栈

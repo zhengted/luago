@@ -3,7 +3,7 @@ package api
 type LuaType = int
 type ArithOp = int
 type CompareOp = int
-type GoFunction func(state LuaState) int // Go函数类型
+type GoFunction func(state LuaState) int // Go函数类型，参数是LuaState，返回值是Go函数返回值个数
 
 type LuaState interface {
 	// 基本栈操作
