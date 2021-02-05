@@ -74,4 +74,10 @@ type LuaState interface {
 	PushGoFunction(f GoFunction)
 	IsGoFunction(idx int) bool
 	ToGoFunction(idx int) GoFunction
+
+	// 全局表操作方法
+	PushGlobalTable()
+	GetGlobal(name string) LuaType
+	SetGlobal(name string)
+	Register(name string, f GoFunction)
 }

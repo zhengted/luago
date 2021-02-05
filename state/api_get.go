@@ -16,7 +16,7 @@ func (self *luaState) NewTable() {
 	self.stack.push(t)
 }
 
-// GetTable: 取栈顶的表索引值的对应value，置入栈顶，参数为栈索引指向的表
+// GetTable: 取栈顶的表索引值的对应value，置入栈顶，参数为栈索引指向的表，原来的表会出栈
 func (self *luaState) GetTable(idx int) LuaType {
 	t := self.stack.get(idx)
 	k := self.stack.pop()
@@ -46,4 +46,10 @@ func (self *luaState) GetField(idx int, k string) LuaType {
 func (self *luaState) GetI(idx int, i int64) LuaType {
 	t := self.stack.get(idx)
 	return self.getTable(t, i)
+}
+
+// GetGlobal:将全局表中字段名为name的变量push入栈
+func (self *luaState) GetGlobal(name string) LuaType {
+	t := self.registry.get(LUA_RIDX_GLOBALS)
+	return self.getTable(t, name)
 }
