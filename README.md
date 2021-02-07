@@ -874,7 +874,7 @@ func (self *luaState) callLuaClosure(nArgs, nResults int, c *closure) {
 	// 5. 将结果压入旧的调用栈中
 	if nResults != 0 {
 		results := newStack.popN(newStack.top - nRegs)
-		self.stack.push(len(results))
+		self.stack.check(len(results))
 		self.stack.pushN(results, nResults)
 	}
 }
@@ -1006,3 +1006,56 @@ const (
   - GetGlobal(name string) 获取全局表中键值为name的值并推入栈顶
   - SetGlobal(name string) 给当前栈顶元素赋予name为键值加入全局表（会弹出）
   - Register(name string, f GoFunction) 只用于注册Go函数值，不会改变Lua栈
+
+### 闭包和UpValue
+
+#### 概念
+
+- 闭包：按词法作用域捕获了**非局部变量(Upvalue)**的嵌套函数。主函数也不例外，它从外部捕获了_ENV变量
+
+- 作用域举例
+
+  ```lua
+  x = 1
+  function g() print(x); x = 2 end
+  function f() local x = 3; g() end
+  f()			-- 1
+  print(x)	-- 2
+  ```
+
+#### 关于全局变量
+
+- 闭包捕获的是非局部变量，并非指全局变量。全局变量实际上是某个特殊的表的字段，而这个特殊的表就是全局环境
+
+- Lua编译器在生成主函数时会在它的外围隐式声明一个局部变量
+
+  ```lua
+  local _ENV		-- 隐藏的Upval
+  local function f() 
+      local function g()
+          _ENV.x = _ENV.y
+      end
+  end
+  ```
+
+#### Upvalue安身
+
+- 针对主函数的_ENV，在加载二进制文件时便将全局表作为upvalue的第一个值
+
+  ```go
+  func (self *luaState) Load(chunk []byte, chunkName, mode string) int {
+  	proto := binchunk.Undump(chunk)
+  	c := newLuaClosure(proto)
+  	self.stack.push(c)
+  	if len(proto.Upvalues) > 0 {
+          // 全局变量加载到主函数
+  		env := self.registry.get(api.LUA_RIDX_GLOBALS)
+  		c.upvals[0] = &upvalue{&env}
+  	}
+  	return 0
+  }
+  ```
+
+- 针对子函数，则是根据函数原型里的Upvalue表来初始化闭包的Upvalue值
+  - Upvalue表显示捕获的是当前函数的局部变量，那么我们只要访问当前函数的局部变量即可
+  - 捕获的是更外围函数的局部变量，该Upvalue已经被当前函数捕获，只要把该Upvalue传递给闭包即可
