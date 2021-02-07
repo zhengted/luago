@@ -32,7 +32,7 @@ func _return(i Instruction, vm LuaVM) {
 	if b == 1 {
 		// 无返回值
 	} else if b > 1 {
-		// 有b-1个返回值
+		// 有b-1个返回值E
 		vm.CheckStack(b - 1)
 		for i := a; i <= a+b-2; i++ {
 			vm.PushValue(i)

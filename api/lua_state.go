@@ -5,6 +5,11 @@ type ArithOp = int
 type CompareOp = int
 type GoFunction func(state LuaState) int // Go函数类型，参数是LuaState，返回值是Go函数返回值个数
 
+// LuaUpvalueIndex:获取luaUpValue的伪索引
+func LuaUpvalueIndex(i int) int {
+	return LUA_REGISTRYINDEX - i
+}
+
 type LuaState interface {
 	// 基本栈操作
 	GetTop() int
@@ -80,4 +85,7 @@ type LuaState interface {
 	GetGlobal(name string) LuaType
 	SetGlobal(name string)
 	Register(name string, f GoFunction)
+
+	// 闭包相关
+	PushGoClosure(f GoFunction, n int)
 }

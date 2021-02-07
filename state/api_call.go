@@ -50,25 +50,30 @@ func (self *luaState) callLuaClosure(nArgs, nResults int, c *closure) {
 	// 5. 将结果压入旧的调用栈中
 	if nResults != 0 {
 		results := newStack.popN(newStack.top - nRegs)
-		self.stack.push(len(results)) // 草（一种植物），结果在被压入栈时会先压一个结果长度入栈
+		self.stack.check(len(results)) // 结果长度只做check 不入栈
 		self.stack.pushN(results, nResults)
 	}
 }
 
 func (self *luaState) callGoClosure(nArgs, nResults int, c *closure) {
-	// 这个nResults 是结果存放位置的初始索引
-
+	//fmt.Printf("nArgs:%d\tnResults:%d\n", nArgs, nResults)
+	// create new lua stack
 	newStack := newLuaStack(nArgs+api.LUA_MINSTACK, self)
 	newStack.closure = c
 
-	args := self.stack.popN(nArgs)
-	newStack.pushN(args, nArgs)
+	// pass args, pop func
+	if nArgs > 0 {
+		args := self.stack.popN(nArgs)
+		newStack.pushN(args, nArgs)
+	}
 	self.stack.pop()
 
+	// run closure
 	self.pushLuaStack(newStack)
 	r := c.goFunc(self)
 	self.popLuaStack()
 
+	// return results
 	if nResults != 0 {
 		results := newStack.popN(r)
 		self.stack.check(len(results))

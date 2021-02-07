@@ -56,9 +56,8 @@ func (self *luaState) LoadVararg(n int) {
 //LoadProto(idx int):把当前Lua函数的子函数原型 实例化为闭包推入栈顶
 func (self *luaState) LoadProto(idx int) {
 	stack := self.stack
-	subProto := stack.closure.proto.Protos[idx]
-	proto := self.stack.closure.proto.Protos[idx]
-	closure := newLuaClosure(proto)
+	subProto := stack.closure.proto.Protos[idx] // 栈内的外部原型
+	closure := newLuaClosure(subProto)
 	self.stack.push(closure)
 	//加载UpValue
 	for i, uvInfo := range subProto.Upvalues {
@@ -72,6 +71,8 @@ func (self *luaState) LoadProto(idx int) {
 				closure.upvals[i] = openuv
 			} else {
 				closure.upvals[i] = &upvalue{&stack.slots[uvIdx]}
+				// 加载子函数原型时会将栈内的upvalue值放入当前的openuv
+				stack.openuvs[uvIdx] = closure.upvals[i]
 			}
 		} else {
 			// 更外围函数的局部变量
@@ -79,4 +80,17 @@ func (self *luaState) LoadProto(idx int) {
 		}
 	}
 
+}
+
+// CloseUpvalues:关闭openuv的通道
+//	如果某个块内部定义的局部变量已经被嵌套函数捕获，那么当这些局部变量退出作用域时（块结束）
+//	编译器会产生一条jmp指令，指示虚拟机闭合相应的Upvalue
+func (self *luaState) CloseUpvalues(a int) {
+	for i, openuv := range self.stack.openuvs {
+		if i >= a-1 {
+			val := *openuv.val
+			openuv.val = &val
+			delete(self.stack.openuvs, i)
+		}
+	}
 }

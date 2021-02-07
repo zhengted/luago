@@ -69,7 +69,7 @@ func (self *luaStack) pop() luaValue {
 // popN: 弹出栈顶指定数量的值
 func (self *luaStack) popN(n int) []luaValue {
 	vals := make([]luaValue, n)
-	for i := 0; i < n; i++ {
+	for i := n - 1; i >= 0; i-- {
 		vals[i] = self.pop()
 	}
 	return vals
@@ -78,11 +78,7 @@ func (self *luaStack) popN(n int) []luaValue {
 // absIndex: 把索引转换为绝对索引
 // TODO:需考虑索引是否有效
 func (self *luaStack) absIndex(idx int) int {
-	if idx <= api.LUA_REGISTRYINDEX {
-		// 都属于伪索引
-		return idx
-	}
-	if idx >= 0 {
+	if idx >= 0 || idx <= api.LUA_REGISTRYINDEX {
 		return idx
 	}
 	return idx + self.top + 1
@@ -90,7 +86,14 @@ func (self *luaStack) absIndex(idx int) int {
 
 // isValid: 判断索引是否有效
 func (self *luaStack) isValid(idx int) bool {
+	if idx < api.LUA_REGISTRYINDEX {
+		// upValue
+		uvIdx := api.LUA_REGISTRYINDEX - idx - 1
+		c := self.closure
+		return c != nil && uvIdx < len(c.upvals)
+	}
 	if idx == api.LUA_REGISTRYINDEX {
+		// 全局表
 		return true
 	}
 	absIdx := self.absIndex(idx)
@@ -99,7 +102,17 @@ func (self *luaStack) isValid(idx int) bool {
 
 // get: 根据索引从栈中取值
 func (self *luaStack) get(idx int) luaValue {
+	if idx < api.LUA_REGISTRYINDEX {
+		// upvalue处理
+		uvIdx := api.LUA_REGISTRYINDEX - idx - 1
+		c := self.closure
+		if c == nil || uvIdx >= len(c.upvals) {
+			return nil
+		}
+		return *(c.upvals[uvIdx].val)
+	}
 	if idx == api.LUA_REGISTRYINDEX {
+		// 全局表处理
 		return self.state.registry
 	}
 	absIdx := self.absIndex(idx)
@@ -111,7 +124,16 @@ func (self *luaStack) get(idx int) luaValue {
 
 // set: 根据索引往栈中写值
 func (self *luaStack) set(idx int, val luaValue) {
+	if idx < api.LUA_REGISTRYINDEX { /* upvalues */
+		uvIdx := api.LUA_REGISTRYINDEX - idx - 1
+		c := self.closure
+		if c != nil && uvIdx < len(c.upvals) {
+			*(c.upvals[uvIdx].val) = val
+		}
+		return
+	}
 	if idx == api.LUA_REGISTRYINDEX {
+		// 全局表处理
 		self.state.registry = val.(*luaTable)
 		return
 	}

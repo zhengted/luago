@@ -30,6 +30,7 @@ func (self *luaState) TypeName(tp LuaType) string {
 
 func (self *luaState) Type(idx int) LuaType {
 	if self.stack.isValid(idx) {
+		//self.PrintStack()
 		val := self.stack.get(idx)
 		return typeOf(val)
 	}

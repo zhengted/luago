@@ -15,6 +15,8 @@ func jmp(i Instruction, vm LuaVM) {
 	a, sBx := i.AsBx()
 	vm.AddPC(sBx)
 	if a != 0 {
-		panic("TODO!")
+		// 处于开启状态的Upvalue引用了还在寄存器里的Lua值，
+		// 将这些值从寄存器里复制出来，然后更新Upvalue
+		vm.CloseUpvalues(a)
 	}
 }
