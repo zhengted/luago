@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	. "luago/api"
 	"luago/number"
 )
@@ -78,4 +79,55 @@ func _stringToInteger(s string) (int64, bool) {
 		return number.FloatToInteger(f)
 	}
 	return 0, false
+}
+
+// setMetatable: 先判断值是否是表，如果是，直接修改其元表字段即可。
+//			否则根据变量类型把元表存储到注册表里
+func setMetatable(val luaValue, mt *luaTable, ls *luaState) {
+	if t, ok := val.(*luaTable); ok {
+		t.metatable = mt
+		return
+	}
+	key := fmt.Sprintf("_MT%d", typeOf(val))
+	ls.registry.put(key, mt)
+}
+
+// getMetatable:如果值是表，直接返回其元表字段即可，如果不是则从注册表中取出与该关联的元表返回
+func getMetatable(val luaValue, ls *luaState) *luaTable {
+	if t, ok := val.(*luaTable); ok {
+		return t.metatable
+	}
+	key := fmt.Sprintf("_MT%d", typeOf(val))
+	if mt := ls.registry.get(key); mt != nil {
+		return mt.(*luaTable)
+	}
+	return nil
+}
+
+// callMetamethod:调用元方法
+//	a,b:算数运算的两个操作数
+//  mmName:方法名
+//	ls:luaState指针用于访问注册表
+func callMetamethod(a, b luaValue, mmName string, ls *luaState) (luaValue, bool) {
+	var mm luaValue
+	if mm = getMetafield(a, mmName, ls); mm == nil {
+		if mm = getMetafield(b, mmName, ls); mm == nil {
+			return nil, false
+		}
+	}
+
+	ls.stack.check(4)
+	ls.stack.push(mm)
+	ls.stack.push(a)
+	ls.stack.push(b)
+	ls.Call(2, 1) //二元运算
+	return ls.stack.pop(), true
+}
+
+// getMetafield:获取值对应的元方法
+func getMetafield(val luaValue, fieldName string, ls *luaState) luaValue {
+	if mt := getMetatable(val, ls); mt != nil {
+		return mt.get(fieldName)
+	}
+	return nil
 }

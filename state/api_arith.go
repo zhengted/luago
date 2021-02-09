@@ -1,15 +1,15 @@
 package state
 
 import (
-	"fmt"
 	. "luago/api"
 	"luago/number"
 	"math"
 )
 
 type operator struct {
-	integerFunc func(int64, int64) int64
-	floatFunc   func(float64, float64) float64
+	metamethod  string                         // 元方法
+	integerFunc func(int64, int64) int64       // 整型运算
+	floatFunc   func(float64, float64) float64 // 浮点型运算
 }
 
 var (
@@ -36,20 +36,20 @@ var (
 )
 
 var operators = []operator{
-	operator{iadd, fadd},
-	operator{isub, fsub},
-	operator{imul, fmul},
-	operator{imod, fmod},
-	operator{nil, pow},
-	operator{nil, div},
-	operator{iidiv, fidiv},
-	operator{band, nil},
-	operator{bor, nil},
-	operator{bxor, nil},
-	operator{shl, nil},
-	operator{shr, nil},
-	operator{iunm, funm},
-	operator{bnot, nil},
+	operator{"__add", iadd, fadd},
+	operator{"__sub", isub, fsub},
+	operator{"__mul", imul, fmul},
+	operator{"__mod", imod, fmod},
+	operator{"__pow", nil, pow},
+	operator{"__div", nil, div},
+	operator{"__idiv", iidiv, fidiv},
+	operator{"__band", band, nil},
+	operator{"__bor", bor, nil},
+	operator{"__bxor", bxor, nil},
+	operator{"__shl", shl, nil},
+	operator{"__shr", shr, nil},
+	operator{"__unm", iunm, funm},
+	operator{"__bnot", bnot, nil},
 }
 
 // Arith:执行计算
@@ -68,10 +68,14 @@ func (self *luaState) Arith(op ArithOp) {
 	operator := operators[op]
 	if result := _arith(a, b, operator); result != nil {
 		self.stack.push(result)
-	} else {
-		fmt.Printf("Error arith op:%d\n", op)
-		panic("arithmetic error!")
+		return
 	}
+	mm := operator.metamethod
+	if result, ok := callMetamethod(a, b, mm, self); ok {
+		self.stack.push(result)
+		return
+	}
+	panic("arithmetic error")
 }
 
 // _arith: 区分类型的辅助函数

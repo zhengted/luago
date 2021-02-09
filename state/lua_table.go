@@ -6,8 +6,9 @@ import (
 )
 
 type luaTable struct {
-	arr  []luaValue            // lua表数组部分
-	_map map[luaValue]luaValue // lua表哈希部分
+	arr       []luaValue            // lua表数组部分
+	_map      map[luaValue]luaValue // lua表哈希部分
+	metatable *luaTable             // 元表支持
 }
 
 // newLuaTable:新建Lua表
@@ -112,4 +113,9 @@ func (self *luaTable) _expandArray() {
 //		table.getn方法，只计算数组部分长度
 func (self *luaTable) len() int {
 	return len(self.arr)
+}
+
+// hasMetafield:是否有元方法
+func (self *luaTable) hasMetafield(fieldName string) bool {
+	return self.metatable != nil && self.metatable.get(fieldName) != nil
 }

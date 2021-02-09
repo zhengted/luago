@@ -97,13 +97,22 @@ func (self *luaState) runLuaClosure() {
 //	也可以理解成被调函数的在寄存器中的索引
 func (self *luaState) Call(nArgs, nResults int) {
 	val := self.stack.get(-(nArgs + 1))
-	if c, ok := val.(*closure); ok {
+	c, ok := val.(*closure)
+	if !ok {
+		// 元方法调用
+		if mf := getMetafield(val, "__call", self); mf != nil {
+			if c, ok = mf.(*closure); ok {
+				self.stack.push(val)
+				self.Insert(-(nArgs + 2))
+				nArgs += 1
+			}
+		}
+	} else {
 		if c.proto != nil {
 			self.callLuaClosure(nArgs, nResults, c)
 		} else {
 			self.callGoClosure(nArgs, nResults, c)
 		}
-	} else {
-		panic("not function")
 	}
+
 }

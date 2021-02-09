@@ -4,6 +4,8 @@ func (self *luaState) Len(idx int) {
 	val := self.stack.get(idx)
 	if s, ok := val.(string); ok {
 		self.stack.push(int64(len(s)))
+	} else if result, ok := callMetamethod(val, val, "__len", self); ok {
+		self.stack.push(result)
 	} else if t, ok := val.(*luaTable); ok {
 		self.stack.push(int64(t.len()))
 	} else {
@@ -24,6 +26,14 @@ func (self *luaState) Concat(n int) {
 				self.stack.push(s1 + s2)
 				continue
 			}
+
+			b := self.stack.pop()
+			a := self.stack.pop()
+			if result, ok := callMetamethod(a, b, "__concat", self); ok {
+				self.stack.push(result)
+				continue
+			}
+
 			panic("concatenation error")
 		}
 	}

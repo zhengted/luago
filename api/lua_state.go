@@ -65,11 +65,17 @@ type LuaState interface {
 	GetTable(idx int) LuaType
 	GetField(idx int, k string) LuaType
 	GetI(idx int, i int64) LuaType
+	RawGet(idx int) LuaType
+	RawGetI(idx int, i int64) LuaType
+	GetMetatable(idx int) bool
 
 	/* set functions (stack->Lua) */
 	SetTable(idx int)
 	SetField(idx int, k string)
 	SetI(idx int, n int64)
+	RawSet(idx int)
+	RawSetI(idx int, i int64)
+	SetMetatable(idx int)
 
 	// 函数相关方法
 	Load(chunk []byte, chunkName, mode string) int // 加载chunk（二进制chunk或Lua文件）
