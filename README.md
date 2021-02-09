@@ -1059,3 +1059,11 @@ const (
 - 针对子函数，则是根据函数原型里的Upvalue表来初始化闭包的Upvalue值
   - Upvalue表显示捕获的是当前函数的局部变量，那么我们只要访问当前函数的局部变量即可
   - 捕获的是更外围函数的局部变量，该Upvalue已经被当前函数捕获，只要把该Upvalue传递给闭包即可
+
+#### 指令
+
+- getUpVal:R(A) := UpValue[B]  获取指定索引的uv（b）复制到指定寄存器（a）
+  - 注意：Upval索引在虚拟机的操作数里从0开始，转换成lua栈伪索引时是从1开始的
+- setUpval:Upvalue[B] := R(A)将指定寄存器的值a赋值到指定索引的uv
+- getTabUp: R(A) := UpValue\[B][RK(C)] 先用RK将指定键推入栈顶，调用GetTable方法获得Upvalue中的表，最后调用replace。适用于upvalue中存的是table类型
+- setTabUp:UpValue\[A][RK(B)] := RK(C)
