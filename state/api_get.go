@@ -46,7 +46,7 @@ func (self *luaState) getTable(t, k luaValue, raw bool) LuaType {
 			}
 		}
 	}
-	panic("Not a table")
+	panic("index error")
 }
 
 func (self *luaState) GetField(idx int, k string) LuaType {

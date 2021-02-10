@@ -5,21 +5,20 @@ import (
 	"io/ioutil"
 	. "luago/api"
 	"luago/state"
-	"os"
 )
 
 func main() {
 	// Global Test demo
-	if len(os.Args) > 1 {
-		data, err := ioutil.ReadFile("luac.out")
-		if err != nil {
-			panic(err)
-		}
-		ls := state.New()
-		ls.Register("print", print)
-		ls.Load(data, os.Args[1], "b")
-		ls.Call(0, 0)
+
+	data, err := ioutil.ReadFile("luac.out")
+	if err != nil {
+		panic(err)
 	}
+	ls := state.New()
+	ls.Register("print", print)
+	ls.Load(data, "luac.out", "b")
+	ls.Call(0, 0)
+
 }
 
 // 用来注册的go函数
