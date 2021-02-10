@@ -55,6 +55,8 @@ type LuaState interface {
 	Compare(idx1, idx2 int, op CompareOp) bool // 比较运算
 	Len(idx int)                               // 取长度计算
 	Concat(n int)                              // 字符串拼接计算
+	RawLen(idx int) uint
+	RawEqual(idx1, idx2 int) bool
 
 	// 测试用
 	PrintStack() // 打印栈

@@ -16,6 +16,8 @@ func main() {
 	}
 	ls := state.New()
 	ls.Register("print", print)
+	ls.Register("getmetatable", getMetatable)
+	ls.Register("setmetatable", setMetatable)
 	ls.Load(data, "luac.out", "b")
 	ls.Call(0, 0)
 
@@ -38,4 +40,16 @@ func print(ls LuaState) int {
 	}
 	fmt.Println()
 	return 0
+}
+
+func getMetatable(ls LuaState) int {
+	if !ls.GetMetatable(1) {
+		ls.PushNil()
+	}
+	return 1
+}
+
+func setMetatable(ls LuaState) int {
+	ls.SetMetatable(1)
+	return 1
 }
