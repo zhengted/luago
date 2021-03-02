@@ -96,4 +96,7 @@ type LuaState interface {
 
 	// 闭包相关
 	PushGoClosure(f GoFunction, n int)
+
+	// 迭代器相关
+	Next(idx int) bool
 }

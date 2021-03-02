@@ -18,6 +18,9 @@ func main() {
 	ls.Register("print", print)
 	ls.Register("getmetatable", getMetatable)
 	ls.Register("setmetatable", setMetatable)
+	ls.Register("pairs", pairs)
+	ls.Register("ipairs", iPairs)
+
 	ls.Load(data, "luac.out", "b")
 	ls.Call(0, 0)
 
@@ -52,4 +55,37 @@ func getMetatable(ls LuaState) int {
 func setMetatable(ls LuaState) int {
 	ls.SetMetatable(1)
 	return 1
+}
+
+func next(ls LuaState) int {
+	ls.SetTop(2)
+	if ls.Next(1) {
+		return 2
+	}
+	ls.PushNil()
+	return 1
+}
+
+func pairs(ls LuaState) int {
+	ls.PushGoFunction(next)
+	ls.PushValue(1)
+	ls.PushNil()
+	return 3
+}
+
+func iPairs(ls LuaState) int {
+	ls.PushGoFunction(_iPairsAux)
+	ls.PushValue(1)
+	ls.PushInteger(0)
+	return 3
+}
+
+func _iPairsAux(ls LuaState) int {
+	i := ls.ToInteger(2) + 1
+	ls.PushInteger(i)
+	if ls.GetI(1, i) == LUA_TNIL {
+		return 1
+	} else {
+		return 2
+	}
 }
