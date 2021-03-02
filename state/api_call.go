@@ -119,3 +119,19 @@ func (self *luaState) Call(nArgs, nResults int) {
 		panic("not function!")
 	}
 }
+
+func (self *luaState) PCall(nArgs, nResults, msgh int) (status int) {
+	caller := self.stack
+	status = api.LUA_ERRRUN
+	defer func() {
+		if err := recover(); err != nil {
+			for self.stack != caller {
+				self.popLuaStack()
+			}
+			self.stack.push(err)
+		}
+	}()
+	self.Call(nArgs, nResults)
+	status = api.LUA_OK
+	return
+}

@@ -99,4 +99,8 @@ type LuaState interface {
 
 	// 迭代器相关
 	Next(idx int) bool
+
+	// 错误处理
+	Error() int
+	PCall(nArgs, nResult, msgh int) int
 }

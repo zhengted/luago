@@ -44,3 +44,15 @@ const (
 	LUA_REGISTRYINDEX       = -LUAI_MAXSTACK - 1000 // 注册表的伪索引	luastate在操作时用这个值作为索引
 	LUA_RIDX_GLOBALS  int64 = 2                     // 定义全局环境在注册表中的索引
 )
+
+// 错误处理相关
+const (
+	LUA_OK = iota
+	LUA_YIELD
+	LUA_ERRRUN
+	LUA_ERRSYNTAX
+	LUA_ERRMEM
+	LUA_ERRGCMM
+	LUA_ERRERR
+	LUA_ERRFILE
+)

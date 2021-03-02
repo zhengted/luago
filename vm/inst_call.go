@@ -139,6 +139,9 @@ func tForCall(i Instruction, vm LuaVM) {
 }
 
 // tForLoop: 通用for循环的实现
+// if R(A+1) ~= NIL then {
+//		R(A) = R(A+1); PC += sBx
+// }
 func tForLoop(i Instruction, vm LuaVM) {
 	a, sBx := i.AsBx()
 	a += 1
