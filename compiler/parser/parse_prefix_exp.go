@@ -85,6 +85,7 @@ func _parseArgs(lexer *Lexer) (args []Exp) {
 		if lexer.LookAhead() != TOKEN_SEP_RPAREN {
 			args = parseExpList(lexer)
 		}
+		lexer.NextTokenOfKind(TOKEN_SEP_RPAREN) // 漏写导致读取下一个token还是`)` 编译出错
 	case TOKEN_SEP_LCURLY: // `{` [explist] `}`
 		args = []Exp{parseTableConstructorExp(lexer)}
 	default: // literal string
