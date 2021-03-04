@@ -1,31 +1,44 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	. "luago/api"
-	"luago/state"
+	. "luago/compiler/lexer"
+	"luago/compiler/parser"
 )
 
 func main() {
 	// Global Test demo
 
-	data, err := ioutil.ReadFile("luac.out")
+	// LUA VM TEST
+	//data, err := ioutil.ReadFile("luac.out")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//ls := state.New()
+	//ls.Register("print", print)
+	//ls.Register("getmetatable", getMetatable)
+	//ls.Register("setmetatable", setMetatable)
+	//ls.Register("pairs", pairs)
+	//ls.Register("ipairs", iPairs)
+	//ls.Register("error", error)
+	//ls.Register("pcall", pCall)
+	//
+	//ls.Load(data, "luac.out", "b")
+	//ls.Call(0, 0)
+
+	// LUA LEX TEST
+	//if len(os.Args) > 1 {
+	data, err := ioutil.ReadFile("test.lua")
 	if err != nil {
 		panic(err)
 	}
-	ls := state.New()
-	ls.Register("print", print)
-	ls.Register("getmetatable", getMetatable)
-	ls.Register("setmetatable", setMetatable)
-	ls.Register("pairs", pairs)
-	ls.Register("ipairs", iPairs)
-	ls.Register("error", error)
-	ls.Register("pcall", pCall)
 
-	ls.Load(data, "luac.out", "b")
-	ls.Call(0, 0)
-
+	//testLexer(string(data), "test.lua")
+	testParser(string(data), "test.lua")
+	//}
 }
 
 // 用来注册的go函数
@@ -102,4 +115,46 @@ func pCall(ls LuaState) int {
 	ls.PushBoolean(status == LUA_OK)
 	ls.Insert(1)
 	return ls.GetTop()
+}
+
+func testLexer(chunk, chunkName string) {
+	lexer := NewLexer(chunk, chunkName)
+	for {
+		line, kind, token := lexer.NextToken()
+		fmt.Printf("[%2d] [%-10s] %s\n",
+			line, kindToCategory(kind), token)
+		if kind == TOKEN_EOF {
+			break
+		}
+	}
+}
+
+func testParser(chunk, chunkName string) {
+	ast := parser.Parse(chunk, chunkName)
+	b, err := json.Marshal(ast)
+	if err != nil {
+		panic(err)
+	}
+	println(string(b))
+}
+
+func kindToCategory(kind int) string {
+	switch {
+	case kind < TOKEN_SEP_SEMI:
+		return "other"
+	case kind <= TOKEN_SEP_RCURLY:
+		return "separator"
+	case kind <= TOKEN_OP_NOT:
+		return "operator"
+	case kind <= TOKEN_KW_WHILE:
+		return "keyword"
+	case kind == TOKEN_IDENTIFIER:
+		return "identifier"
+	case kind == TOKEN_NUMBER:
+		return "number"
+	case kind == TOKEN_STRING:
+		return "string"
+	default:
+		return "other"
+	}
 }
