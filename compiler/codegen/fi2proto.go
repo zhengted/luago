@@ -33,20 +33,21 @@ func toProtos(fis []*funcInfo) []*Prototype {
 }
 
 func getConstants(fi *funcInfo) []interface{} {
-	constants := make([]interface{}, len(fi.constants))
+	consts := make([]interface{}, len(fi.constants))
 	for k, idx := range fi.constants {
-		constants[idx] = k
+		consts[idx] = k
 	}
-	return constants
+	return consts
 }
 
 func getUpvalues(fi *funcInfo) []Upvalue {
 	upvals := make([]Upvalue, len(fi.upvalues))
 	for _, uv := range fi.upvalues {
+		// 这里参考indexOfUpval方法中locVarSlot和upvalIndex的定义
 		if uv.locVarSlot >= 0 { // upvalue in stack 在栈中
 			upvals[uv.index] = Upvalue{1, byte(uv.locVarSlot)}
 		} else {
-			upvals[uv.index] = Upvalue{0, byte(uv.locVarSlot)}
+			upvals[uv.index] = Upvalue{0, byte(uv.upvalIndex)}
 		}
 	}
 	return upvals

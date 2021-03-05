@@ -48,8 +48,8 @@ type locVarInfo struct {
 
 // UpValue表
 type upvalInfo struct {
-	locVarSlot int
-	upvalIndex int
+	locVarSlot int // 如果Upvalue捕获的是直接外围函数的局部变量，则此字段记录改局部变量所占用的寄存器索引
+	upvalIndex int // 否则该字段记录在直接外围函数Upvalue表中的索引
 	index      int
 }
 
