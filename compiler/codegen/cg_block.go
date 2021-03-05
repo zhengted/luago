@@ -17,7 +17,24 @@ func cgRetStat(fi *funcInfo, exps []Exp) {
 		fi.emitReturn(0, 0)
 		return
 	}
+
 	// TODO:没有处理尾递归调用
+	if nExps == 1 {
+		if nameExp, ok := exps[0].(*NameExp); ok {
+			if r := fi.slotOfLocVar(nameExp.Name); r >= 0 {
+				fi.emitReturn(r, 1)
+				return
+			}
+		}
+		if fcExp, ok := exps[0].(*FuncCallExp); ok {
+			r := fi.allocReg()
+			cgTailCallExp(fi, fcExp, r)
+			fi.freeReg()
+			fi.emitReturn(r, -1)
+			return
+		}
+	}
+
 	multRet := isVarargOrFuncCall(exps[nExps-1])
 	for i, exp := range exps {
 		r := fi.allocReg()
@@ -35,12 +52,4 @@ func cgRetStat(fi *funcInfo, exps []Exp) {
 	} else {
 		fi.emitReturn(a, nExps)
 	}
-}
-
-func isVarargOrFuncCall(exp Exp) bool {
-	switch exp.(type) {
-	case *VarargExp, *FuncCallExp:
-		return true
-	}
-	return false
 }

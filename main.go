@@ -7,38 +7,29 @@ import (
 	. "luago/api"
 	. "luago/compiler/lexer"
 	"luago/compiler/parser"
+	"luago/state"
 )
 
 func main() {
-	// Global Test demo
-
-	// LUA VM TEST
-	//data, err := ioutil.ReadFile("luac.out")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//ls := state.New()
-	//ls.Register("print", print)
-	//ls.Register("getmetatable", getMetatable)
-	//ls.Register("setmetatable", setMetatable)
-	//ls.Register("pairs", pairs)
-	//ls.Register("ipairs", iPairs)
-	//ls.Register("error", error)
-	//ls.Register("pcall", pCall)
-	//
-	//ls.Load(data, "luac.out", "b")
-	//ls.Call(0, 0)
-
-	// LUA LEX TEST
 	//if len(os.Args) > 1 {
 	data, err := ioutil.ReadFile("test.lua")
 	if err != nil {
 		panic(err)
 	}
 
-	//testLexer(string(data), "test.lua")
-	testParser(string(data), "test.lua")
+	ls := state.New()
+	ls.Register("print", print)
+	ls.Register("getmetatable", getMetatable)
+	ls.Register("setmetatable", setMetatable)
+	ls.Register("next", next)
+	ls.Register("pairs", pairs)
+	ls.Register("ipairs", iPairs)
+	ls.Register("error", error)
+	ls.Register("pcall", pCall)
+	ls.Load(data, "test.lua", "bt")
+	ls.Call(0, 0)
 	//}
+
 }
 
 // 用来注册的go函数

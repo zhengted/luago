@@ -6,6 +6,21 @@ import (
 	. "luago/vm"
 )
 
+var arithAndBitwiseBinops = map[int]int{
+	TOKEN_OP_ADD:  OP_ADD,
+	TOKEN_OP_SUB:  OP_SUB,
+	TOKEN_OP_MUL:  OP_MUL,
+	TOKEN_OP_MOD:  OP_MOD,
+	TOKEN_OP_POW:  OP_POW,
+	TOKEN_OP_DIV:  OP_DIV,
+	TOKEN_OP_IDIV: OP_IDIV,
+	TOKEN_OP_BAND: OP_BAND,
+	TOKEN_OP_BOR:  OP_BOR,
+	TOKEN_OP_BXOR: OP_BXOR,
+	TOKEN_OP_SHL:  OP_SHL,
+	TOKEN_OP_SHR:  OP_SHR,
+}
+
 type funcInfo struct {
 	constants map[interface{}]int
 	usedRegs  int
@@ -285,6 +300,7 @@ func (self *funcInfo) emitClosure(a, bx int) {
 
 // r[a] = {}
 func (self *funcInfo) emitNewTable(a, nArr, nRec int) {
+	// 这里用了浮点字节码
 	self.emitABC(OP_NEWTABLE,
 		a, Int2fb(nArr), Int2fb(nRec))
 }

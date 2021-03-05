@@ -34,7 +34,7 @@ func cgStat(fi *funcInfo, node Stat) {
 
 func cgLocalFuncDefStat(fi *funcInfo, node *LocalFuncDefStat) {
 	r := fi.addLocVar(node.Name)
-	cgFuncCallExp(fi, node.Exp, r)
+	cgFuncDefExp(fi, node.Exp, r)
 }
 
 func cgFuncCallStat(fi *funcInfo, node *FuncCallStat) {
@@ -135,6 +135,7 @@ func cgIfStat(fi *funcInfo, node *IfStat) {
 	}
 }
 
+// 数学循环
 func cgForNumStat(fi *funcInfo, node *ForNumStat) {
 	fi.enterScope(true)
 	// 第一步 声明三个局部变量
@@ -155,6 +156,7 @@ func cgForNumStat(fi *funcInfo, node *ForNumStat) {
 	fi.exitScope()
 }
 
+// 泛型循环
 func cgForInStat(fi *funcInfo, node *ForInStat) {
 	fi.enterScope(true)
 	// 第一步 声明局部变量
@@ -176,4 +178,125 @@ func cgForInStat(fi *funcInfo, node *ForInStat) {
 	fi.emitTForLoop(rGenerator+2, pcJmpToTFC-fi.pc()-1)
 
 	fi.exitScope()
+}
+
+// TODO:以下两段代码仔细读下，针对可变参数和参数是函数调用的处理
+func cgLocalVarDeclStat(fi *funcInfo, node *LocalVarDeclStat) {
+	exps := removeTailNils(node.ExpList)
+	nExps := len(exps)
+	nNames := len(node.NameList)
+
+	oldRegs := fi.usedRegs
+	if nExps == nNames {
+		for _, exp := range exps {
+			a := fi.allocReg()
+			cgExp(fi, exp, a, 1)
+		}
+	} else if nExps > nNames {
+		for i, exp := range exps {
+			a := fi.allocReg()
+			if i == nExps-1 && isVarargOrFuncCall(exp) {
+				cgExp(fi, exp, a, 0)
+			} else {
+				cgExp(fi, exp, a, 1)
+			}
+		}
+	} else {
+		multRet := false
+		for i, exp := range exps {
+			a := fi.allocReg()
+			if i == nExps-1 && isVarargOrFuncCall(exp) {
+				// 最后一个参数是可变参数或者函数调用
+				multRet = true
+				n := nNames - nExps + 1
+				cgExp(fi, exp, a, n)
+				fi.allocRegs(n - 1)
+			} else {
+				cgExp(fi, exp, a, 1)
+			}
+		}
+		if !multRet {
+			n := nNames - nExps
+			a := fi.allocRegs(n)
+			fi.emitLoadNil(a, n)
+		}
+	}
+	fi.usedRegs = oldRegs
+	for _, name := range node.NameList {
+		fi.addLocVar(name)
+	}
+}
+
+func cgAssignStat(fi *funcInfo, node *AssignStat) {
+	exps := removeTailNils(node.ExpList)
+	nExps := len(exps)
+	nVars := len(node.VarList) // 变量名数量
+	oldRegs := fi.usedRegs
+	// 用于记录表、键、值得寄存器
+	tRegs := make([]int, nVars)
+	kRegs := make([]int, nVars)
+	vRegs := make([]int, nVars)
+
+	for i, exp := range node.VarList {
+		// 等号左边是表访问得表达式
+		if taExp, ok := exp.(*TableAccessExp); ok {
+			tRegs[i] = fi.allocReg()
+			cgExp(fi, taExp.PrefixExp, tRegs[i], 1)
+			kRegs[i] = fi.allocReg()
+			cgExp(fi, taExp.KeyExp, kRegs[i], 1)
+		}
+	}
+	for i := 0; i < nVars; i++ {
+		vRegs[i] = fi.usedRegs + i
+	}
+	if nExps >= nVars {
+		for i, exp := range exps {
+			a := fi.allocReg()
+			if i >= nVars && i == nExps-1 && isVarargOrFuncCall(exp) {
+				cgExp(fi, exp, a, 0)
+			} else {
+				cgExp(fi, exp, a, 1)
+			}
+		}
+	} else {
+		multRet := false
+		for i, exp := range exps {
+			a := fi.allocReg()
+			if i == nExps-1 && isVarargOrFuncCall(exp) {
+				// 最后一个参数是可变参数或者函数调用
+				multRet = true
+				n := nVars - nExps + 1
+				cgExp(fi, exp, a, n)
+				fi.allocRegs(n - 1)
+			} else {
+				cgExp(fi, exp, a, 1)
+			}
+		}
+		if !multRet {
+			n := nVars - nExps
+			a := fi.allocRegs(n)
+			fi.emitLoadNil(a, n)
+		}
+	}
+	for i, exp := range node.VarList {
+		if nameExp, ok := exp.(*NameExp); ok {
+			varName := nameExp.Name
+			if a := fi.slotOfLocVar(varName); a >= 0 {
+				// 局部变量赋值用move
+				fi.emitMove(a, vRegs[i])
+			} else if b := fi.indexOfUpval(varName); b >= 0 {
+				// upvalue赋值
+				fi.emitSetUpval(vRegs[i], b)
+			} else {
+				// 给全局变量赋值
+				a := fi.indexOfUpval("_ENV")
+				b := 0x100 + fi.indexOfConstant(varName)
+				fi.emitSetTabUp(a, b, vRegs[i])
+			}
+		} else {
+			// 访问表赋值
+			fi.emitSetTable(tRegs[i], kRegs[i], vRegs[i])
+		}
+	}
+	fi.usedRegs = oldRegs //释放所有临时变量
 }

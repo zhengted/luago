@@ -3,6 +3,7 @@ package state
 import (
 	"luago/api"
 	"luago/binchunk"
+	"luago/compiler"
 )
 import "luago/vm"
 
@@ -11,7 +12,12 @@ import "luago/vm"
 		返回值为状态码：0表示成功
 */
 func (self *luaState) Load(chunk []byte, chunkName, mode string) int {
-	proto := binchunk.Undump(chunk)
+	var proto *binchunk.Prototype
+	if binchunk.IsBinaryChunk(chunk) {
+		proto = binchunk.Undump(chunk)
+	} else {
+		proto = compiler.Compile(string(chunk), chunkName)
+	}
 	c := newLuaClosure(proto)
 	self.stack.push(c)
 	if len(proto.Upvalues) > 0 {
