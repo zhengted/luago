@@ -8,27 +8,28 @@ import (
 	. "luago/compiler/lexer"
 	"luago/compiler/parser"
 	"luago/state"
+	"os"
 )
 
 func main() {
-	//if len(os.Args) > 1 {
-	data, err := ioutil.ReadFile("test.lua")
-	if err != nil {
-		panic(err)
-	}
+	if len(os.Args) > 1 {
+		data, err := ioutil.ReadFile(os.Args[1])
+		if err != nil {
+			panic(err)
+		}
 
-	ls := state.New()
-	ls.Register("print", print)
-	ls.Register("getmetatable", getMetatable)
-	ls.Register("setmetatable", setMetatable)
-	ls.Register("next", next)
-	ls.Register("pairs", pairs)
-	ls.Register("ipairs", iPairs)
-	ls.Register("error", error)
-	ls.Register("pcall", pCall)
-	ls.Load(data, "test.lua", "bt")
-	ls.Call(0, 0)
-	//}
+		ls := state.New()
+		ls.Register("print", print)
+		ls.Register("getmetatable", getMetatable)
+		ls.Register("setmetatable", setMetatable)
+		ls.Register("next", next)
+		ls.Register("pairs", pairs)
+		ls.Register("ipairs", iPairs)
+		ls.Register("error", error)
+		ls.Register("pcall", pCall)
+		ls.Load(data, os.Args[1], "bt")
+		ls.Call(0, 0)
+	}
 
 }
 
