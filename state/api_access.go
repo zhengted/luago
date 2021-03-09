@@ -153,3 +153,8 @@ func (self *luaState) RawLen(idx int) uint {
 		return 0
 	}
 }
+
+func (self *luaState) ToPointer(idx int) interface{} {
+	// todo
+	return self.stack.get(idx)
+}

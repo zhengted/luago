@@ -10,7 +10,7 @@ func LuaUpvalueIndex(i int) int {
 	return LUA_REGISTRYINDEX - i
 }
 
-type LuaState interface {
+type BasicAPI interface {
 	// 基本栈操作
 	GetTop() int
 	AbsIndex(idx int) int
@@ -103,4 +103,12 @@ type LuaState interface {
 	// 错误处理
 	Error() int
 	PCall(nArgs, nResult, msgh int) int
+
+	// 转换
+	StringToNumber(s string) bool
+}
+
+type LuaState interface {
+	BasicAPI
+	AuxLib
 }

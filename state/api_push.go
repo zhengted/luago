@@ -25,6 +25,13 @@ func (self *luaState) PushString(s string) {
 	self.stack.push(s)
 }
 
+// [-0, +1, e]
+// http://www.lua.org/manual/5.3/manual.html#lua_pushfstring
+func (self *luaState) PushFString(fmtStr string, a ...interface{}) {
+	str := fmt.Sprintf(fmtStr, a...)
+	self.stack.push(str)
+}
+
 // 测试用
 func (self *luaState) PrintStack() {
 	fmt.Printf("PrintStack %v\n", self.stack.slots)
