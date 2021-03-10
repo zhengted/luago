@@ -13,7 +13,7 @@ func main() {
 	if len(os.Args) > 1 {
 		ls := state.New()
 		ls.OpenLibs()           // 开启标准库
-		ls.LoadFile(os.Args[0]) // 加载文件
+		ls.LoadFile(os.Args[1]) // 加载文件
 		ls.Call(0, -1)
 	}
 
