@@ -11,8 +11,8 @@ const (
 	INSTRUCTION_SIZE = 4
 	LUA_INTEGER_SIZE = 8
 	LUA_NUMBER_SIZE  = 8
-	LUAC_INT         = 0x5678
-	LUAC_NUM         = 370.5
+	LUAC_INT         = 0x5678 // 固定整数 用于检测计算机的大小端 默认为小端
+	LUAC_NUM         = 370.5  // 固定浮点数 检测浮点数编码 默认为IEEE754
 )
 
 const (
